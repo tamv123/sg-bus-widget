@@ -231,11 +231,10 @@ all of them and fetches each stop once per tick.
   download swaps it, an HTML block page is rejected. The real download is not proven on a device yet (Zscaler breaks TLS on the emulator).
 - ✅ **Location disclosure** before Android's prompt; a stop dropped from LTA's list is flagged in My stops.
 - ✅ Idle widgets no longer say "no live info" once old buses have passed; the first live frame no longer shows a bogus 07:30 fetch time.
-- ✅ **Release pipeline:** upload key `~/.android-keys/sg-bus-upload.jks` (**back it up**), `scripts/publish.sh`, `scripts/send_apk.sh`, `PRIVACY.md`.
+- ✅ **Release pipeline:** upload key `~/.android-keys/sg-bus-upload.jks` (**back it up**), `scripts/publish.sh`, `scripts/send_apk.sh`, `PRIVACY.md`, published at https://gist.github.com/tamv123/28d5763300292b49df677c05b6cfc6ed.
 
 **Not done yet (next):**
 - Check it on the S25+ (One UI sizes and the location FGS type). If One UI grants the location type, **remove
   `ACCESS_BACKGROUND_LOCATION` from the manifest before release**: it triggers Play's background-location review, and the app wouldn't need it.
-- Publish `PRIVACY.md` as a secret gist (Play needs a URL).
 - Create the app in Play Console, grant `play-publisher` release rights on it, upload the first bundle, then `scripts/publish.sh`.
 - Chronometer countdown trial (only worth it if 20 s steps feel too coarse on the phone).
