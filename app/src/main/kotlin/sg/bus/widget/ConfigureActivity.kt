@@ -64,6 +64,9 @@ class ConfigureActivity : Activity() {
             col.button("Choose buses for this widget") {
                 Directory.stops(this)[p.stop]?.let { s -> pickServices(this, s, p.services) { pinned = Registration(p.stop, it); redraw() } }
             }
+            if (p.services.size > 1) col.button("Change the order") {
+                reorderServices(this, "Bus order on this widget", p.services) { pinned = Registration(p.stop, it); redraw() }
+            }
         }
 
         col.button("✅ Done") {

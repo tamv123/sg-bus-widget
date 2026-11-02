@@ -7,12 +7,15 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.CancellationSignal
 import android.util.Log
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import sg.bus.core.ARRIVALS_URL
 import sg.bus.core.ApiException
+import sg.bus.core.DirectoryRefresh
 import sg.bus.core.Registration
 import sg.bus.core.Stop
 import sg.bus.core.WidgetConfig
@@ -52,35 +55,81 @@ object Store {
     fun setDiag(ctx: Context, key: String, value: String) = prefs(ctx).edit().putString("diag.$key", value).apply()
 }
 
-/** The stops directory and which services call where, from busrouter snapshots bundled in assets (no network needed). */
+/**
+ * The stops directory and which services call where. Starts from the busrouter snapshots bundled in assets; a monthly
+ * download replaces them in files/directory/. A failed or implausible download keeps what we already have.
+ */
 object Directory {
+    private const val STOPS = "stops.min.json"
+    private const val SERVICES = "services.min.json"
+    private const val BASE = "https://data.busrouter.sg/v1/"
+
     @Volatile private var stops: Map<String, Stop>? = null
     @Volatile private var services: Map<String, List<String>>? = null
+    private val refreshing = AtomicBoolean(false)
+
+    private fun dir(ctx: Context) = File(ctx.filesDir, "directory")
+
+    private fun read(ctx: Context, name: String): String =
+        File(dir(ctx), name).takeIf { it.exists() }?.readText()
+            ?: ctx.assets.open(name).bufferedReader().use { it.readText() }
 
     fun stops(ctx: Context): Map<String, Stop> = stops ?: synchronized(this) {
-        stops ?: parseStops(ctx.assets.open("stops.min.json").bufferedReader().use { it.readText() }).also { stops = it }
+        stops ?: parseStops(read(ctx, STOPS)).also { stops = it }
     }
 
     fun servicesAt(ctx: Context, stop: String): List<String> = (services ?: synchronized(this) {
-        services ?: parseStopServices(ctx.assets.open("services.min.json").bufferedReader().use { it.readText() }).also { services = it }
+        services ?: parseStopServices(read(ctx, SERVICES)).also { services = it }
     })[stop] ?: emptyList()
 
     fun name(ctx: Context, code: String): String = stops(ctx)[code]?.name ?: code
+
+    /** Safe to call often: returns at once, and only downloads when due. Runs off the caller's thread. */
+    fun refreshIfDue(ctx: Context) {
+        val app = ctx.applicationContext
+        val lastOk = Store.diag(app, "dir.ok")?.toLongOrNull() ?: 0
+        val lastTry = Store.diag(app, "dir.try")?.toLongOrNull() ?: 0
+        if (!DirectoryRefresh.due(lastOk, lastTry, System.currentTimeMillis())) return
+        if (!refreshing.compareAndSet(false, true)) return
+        Thread {
+            try {
+                Store.setDiag(app, "dir.try", System.currentTimeMillis().toString())
+                val stopsBody = Fetcher.get(app, BASE + STOPS, STOPS, timeoutMs = 15_000)
+                val servicesBody = Fetcher.get(app, BASE + SERVICES, SERVICES, timeoutMs = 15_000)
+                DirectoryRefresh.validate(stopsBody, servicesBody)
+                dir(app).mkdirs()
+                // the pair is swapped only after both are safely on disk, and the rename is atomic per file
+                listOf(STOPS to stopsBody, SERVICES to servicesBody).map { (name, body) ->
+                    File(dir(app), "$name.new").apply { writeText(body) } to File(dir(app), name)
+                }.forEach { (tmp, final) -> check(tmp.renameTo(final)) { "rename ${tmp.name}" } }
+                synchronized(this) { stops = null; services = null }
+                Store.setDiag(app, "dir.ok", System.currentTimeMillis().toString())
+                Store.setDiag(app, "dir.err", "")
+                Log.i(TAG, "stops directory refreshed: ${stops(app).size} stops")
+            } catch (e: Exception) {
+                Store.setDiag(app, "dir.err", Fetcher.describe(e))
+                Log.w(TAG, "stops directory refresh failed, keeping the current one: ${Fetcher.describe(e)}")
+            } finally {
+                refreshing.set(false)
+            }
+        }.start()
+    }
 }
 
 object Fetcher {
     /** arrivelah for one stop. 5 s timeouts so one slow fetch can't push the next 20 s tick back. */
-    fun arrivals(ctx: Context, stop: String): String {
+    fun arrivals(ctx: Context, stop: String): String =
+        get(ctx, ARRIVALS_URL + stop, "fixture-$stop.json", "fixture.json", timeoutMs = 5_000)
+
+    fun get(ctx: Context, url: String, vararg fixtures: String, timeoutMs: Int): String {
         // Emulator-only seam (corporate proxy breaks TLS there): `adb shell run-as` a fixture into files/
-        // (fixture-<stop>.json, else fixture.json for any stop).
-        if (BuildConfig.DEBUG) listOf("fixture-$stop.json", "fixture.json").map { java.io.File(ctx.filesDir, it) }
-            .firstOrNull { it.exists() }?.let {
-                Log.w(TAG, "using ${it.path} instead of arrivelah")
-                return it.readText()
-            }
-        val c = URL(ARRIVALS_URL + stop).openConnection() as HttpURLConnection
-        c.connectTimeout = 5_000
-        c.readTimeout = 5_000
+        if (BuildConfig.DEBUG) fixtures.map { File(ctx.filesDir, it) }.firstOrNull { it.exists() }?.let {
+            Log.w(TAG, "using ${it.path} instead of $url")
+            return it.readText()
+        }
+        val c = URL(url).openConnection() as HttpURLConnection
+        c.connectTimeout = timeoutMs
+        c.readTimeout = timeoutMs
         c.setRequestProperty("User-Agent", "sg-bus-widget/${BuildConfig.VERSION_NAME}")
         try {
             val code = c.responseCode
@@ -93,7 +142,7 @@ object Fetcher {
     }
 
     fun describe(e: Throwable): String = when (e) {
-        is ApiException -> e.message ?: "arrivelah error"
+        is ApiException -> e.message ?: "bad response"
         is java.net.UnknownHostException -> "no network"
         is java.net.SocketTimeoutException -> "timed out"
         is javax.net.ssl.SSLException -> "TLS error (network proxy?)"

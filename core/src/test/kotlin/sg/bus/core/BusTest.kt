@@ -101,4 +101,31 @@ class BusTest {
         val st = WidgetState(views = listOf(StopView("42139", listOf("970"), 30.0, mapOf("970" to listOf(b.saved())))), sessionEndMs = 5)
         assertEquals(st, configJson.decodeFromString<WidgetState>(configJson.encodeToString(WidgetState.serializer(), st)))
     }
+
+    @Test fun movingBuses() {
+        val l = listOf("970", "156", "77")
+        assertEquals(listOf("156", "970", "77"), l.moved(1, -1))
+        assertEquals(listOf("156", "970", "77"), l.moved(0, 1))
+        assertEquals(l, l.moved(0, -1))
+        assertEquals(l, l.moved(2, 1))
+    }
+
+    @Test fun directoryRefreshTiming() {
+        val day = 86_400_000L
+        val now = 100 * day
+        assertTrue(DirectoryRefresh.due(0, 0, now))                       // never refreshed
+        assertTrue(!DirectoryRefresh.due(now - 29 * day, 0, now))         // still fresh
+        assertTrue(DirectoryRefresh.due(now - 31 * day, now - 2 * day, now))
+        assertTrue(!DirectoryRefresh.due(now - 31 * day, now - 3_600_000, now)) // failed an hour ago: wait
+    }
+
+    @Test fun directoryValidationRejectsBrokenDownloads() {
+        fun stops(n: Int) = (1..n).joinToString(",", "{", "}") { """"$it":[103.8,1.3,"S$it","Rd"]""" }
+        fun services(n: Int) = """{"1":{"routes":[${(1..n).joinToString(",", "[", "]") { "\"$it\"" }}]}}"""
+        DirectoryRefresh.validate(stops(5000), services(5000))
+        assertFailsWith<ApiException> { DirectoryRefresh.validate("<html>blocked</html>", services(5000)) }
+        assertFailsWith<ApiException> { DirectoryRefresh.validate(stops(5000), "<html>") }
+        assertFailsWith<ApiException> { DirectoryRefresh.validate(stops(10), services(10)) }
+        assertFailsWith<ApiException> { DirectoryRefresh.validate(stops(5000), services(100)) }
+    }
 }
