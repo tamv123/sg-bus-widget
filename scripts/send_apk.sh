@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Send the latest debug APK to Victor's WhatsApp (via the Via VM's wa_service /send-document).
-# Usage: scripts/send_apk.sh ["optional caption"]
+# Usage: [WA_TO=<number>] scripts/send_apk.sh ["optional caption"]   (needs gcloud access to the Via VM)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 APK=app/build/outputs/apk/debug/app-debug.apk
@@ -8,7 +8,7 @@ APK=app/build/outputs/apk/debug/app-debug.apk
 VER=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
 NAME="SG-Bus-${VER}-debug.apk"
 CAPTION="${1:-SG Bus widget ${VER} — install, add your stops, then add a widget}"
-ZONE=us-west1-b; VM=ria-chatbot; TO=6590622037
+ZONE=us-west1-b; VM=ria-chatbot; TO="${WA_TO:-6590622037}"   # WA_TO=<number> to send to someone else
 TMP=$(mktemp -d); cp "$APK" "$TMP/$NAME"
 cleanup() { gcloud compute ssh $VM --zone=$ZONE --quiet --command="sudo rm -f /tmp/$NAME" >/dev/null 2>&1 || true; }
 cleanup; trap cleanup EXIT

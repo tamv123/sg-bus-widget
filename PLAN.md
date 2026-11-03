@@ -233,6 +233,8 @@ all of them and fetches each stop once per tick.
 - ✅ Idle widgets no longer say "no live info" once old buses have passed; the first live frame no longer shows a bogus 07:30 fetch time.
 - ✅ **Release pipeline:** upload key `~/.android-keys/sg-bus-upload.jks` (**back it up**), `scripts/publish.sh`, `scripts/send_apk.sh`, `PRIVACY.md`, published at https://gist.github.com/tamv123/28d5763300292b49df677c05b6cfc6ed.
 
+**2026-11-03:** Victor tested v0.2 on the S25+ and accepted it as the first version. PRs #1 and #2 merged. README and CONTRIBUTING.md added for collaborators.
+
 **Not done yet (next):**
 - Check it on the S25+ (One UI sizes and the location FGS type). If One UI grants the location type, **remove
   `ACCESS_BACKGROUND_LOCATION` from the manifest before release**: it triggers Play's background-location review, and the app wouldn't need it.
