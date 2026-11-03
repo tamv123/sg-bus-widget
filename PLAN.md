@@ -190,12 +190,42 @@ the new app. Also: the location prominent disclosure, a privacy-policy gist, and
 attribution (busrouter / arrivelah, LTA DataMall). Optional: the LTA DataMall
 fail-over with its test button.
 
-## 5. Decisions for Victor
+## 5. Decisions (Victor, 2026-10-29: "go ahead with your recommendation")
 
-1. **Data source:** arrivelah only, like Via (*recommended*), or also an LTA DataMall
-   key as a tested fail-over in phase 3?
-2. **Bigger widget:** more services at the *same* stop (*recommended*), with the
-   second-nearest stop only at 4×3+, or the second stop already at 4×2?
-3. **Tap during a live session:** refresh now and restart the 15 min (*recommended*),
-   or stop the session?
-4. **Package name:** `sg.bus.widget`, matching `sg.pm25.widget`.
+1. **Data source:** arrivelah only, as Via does. No LTA key for now.
+2. **Bigger widget:** shows more services at the same stop. The second-nearest stop appears only from about 4×3 (portrait height ≥ 200 dp).
+3. **Tap during a live session:** refreshes now and restarts that widget's 15 min.
+4. **Package:** `sg.bus.widget`.
+
+## 6. Several widgets, each set up differently (Victor's question, 2026-10-29)
+
+Every placed widget has its own `appWidgetId`, and the app keeps a `WidgetConfig` for each one:
+- **Nearest** (the default): follows your location across *My stops*.
+- **📌 Pinned**: always one stop, with **its own** list of buses. For example, widget 1 = stop A · 123, widget 2 = stop B · 234.
+
+The setup screen (`ConfigureActivity`) opens when you add a widget, and again from long-press › settings
+(`widgetFeatures="reconfigurable"`). Each widget runs its own live session. A single service loop serves
+all of them and fetches each stop once per tick.
+
+## 7. Phase 0 + MVP results (emulator, Pixel / Android 16, 2026-10-29)
+
+- ✅ **A widget tap starts the foreground service from the background.** Android logged `Background started FGS:
+  Allowed … allowWiu:53`.
+- ✅ **The service ran as `location|specialUse`** (`types=0x40000008`), so a session started from the widget gets
+  *while-in-use* location. "Allow all the time" is **not** needed on stock Android 16. **Still to confirm on the S25+.** The
+  app records the type it got and shows a fallback prompt if One UI refuses the location type.
+- ✅ The 20 s loop ran on time after one fix: it now schedules from the start of each tick, where waiting
+  for the 3 s location attempt had stretched it to about 23 s. The **Stop** button in the notification ends the session. The widget
+  goes grey and shows **clock times**, because minutes frozen at the last fetch would be wrong by the time you look.
+- ✅ The nearest stop came from location: Avenue Villa at 10 m beat Aft Lantana at 40 m. A widget pinned to Aft Lantana · 970
+  showed that stop while the other widget followed the nearest one.
+- ✅ **The 15-min session stopped on its own:** 15:22:11 → 15:37:20, **45 fetches**, then the widget went idle (grey, clock times).
+- One bug was caught on the emulator: a plain `<View>` spacer made the widget show "Can't load widget", because
+  RemoteViews doesn't allow it. A `FrameLayout` replaced it.
+
+**Not done yet (next):**
+- Check it on the S25+ (One UI sizes and the location FGS type).
+- Reorder buses within a stop.
+- Monthly refresh of the stops directory. It's bundled in assets for now (busrouter snapshot of 2026-10-29).
+- Chronometer countdown trial.
+- Phase 3 Play release: upload key, `publish.sh`, disclosure, privacy gist.

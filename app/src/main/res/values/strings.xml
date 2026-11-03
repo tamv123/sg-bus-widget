@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SG Bus</string>
+    <string name="widget_large">Bus times (large)</string>
+    <string name="widget_small">Bus times (small)</string>
+    <string name="widget_desc">Tap for live arrivals at your nearest registered stop</string>
+</resources>
