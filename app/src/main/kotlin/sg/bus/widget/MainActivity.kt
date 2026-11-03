@@ -10,11 +10,17 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.graphics.Typeface
 import android.text.InputType
+import android.view.Gravity
 import android.view.View
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.TextView
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import sg.bus.core.Registration
@@ -24,14 +30,60 @@ import sg.bus.core.distanceLabel
 import sg.bus.core.nearbyStops
 import sg.bus.core.searchStops
 
-/** Setup + "My stops": register stops and the buses you care about at each; widgets pick from these. */
+/**
+ * Three tabs behind a ☰ drawer: Main (My stops + Widgets), Setup (permissions), About (version + diagnostics).
+ * Platform views only, so the drawer is a hand-rolled overlay rather than AndroidX DrawerLayout.
+ */
 class MainActivity : Activity() {
+    private enum class Tab(val label: String, val title: String) {
+        MAIN("🚏  Main", "SG Bus"), SETUP("⚙️  Setup", "Setup"), ABOUT("ℹ️  About", "About")
+    }
+
+    private var tab = Tab.MAIN
     private lateinit var col: LinearLayout
+    private lateinit var scroll: ScrollView
+    private lateinit var scrim: View
+    private lateinit var drawer: LinearLayout
+    private lateinit var titleView: TextView
+    private val closeOnBack = OnBackInvokedCallback { closeDrawer() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(12), dp(20), dp(32)) }
-        setContentView(ScrollView(this).apply { addView(col); fitsSystemWindows = true })
+        tab = savedInstanceState?.getString("tab")?.let { runCatching { Tab.valueOf(it) }.getOrNull() } ?: Tab.MAIN
+        col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(4), dp(20), dp(32)) }
+        scroll = ScrollView(this).apply { addView(col) }
+        scrim = View(this).apply {
+            setBackgroundColor(0x66000000); visibility = View.GONE; alpha = 0f; setOnClickListener { closeDrawer() }
+        }
+        drawer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(0, dp(12), 0, dp(12))
+            setBackgroundColor(themeColor(android.R.attr.colorBackground)); elevation = dp(16).toFloat()
+            visibility = View.GONE; translationX = -dp(DRAWER_DP).toFloat(); isClickable = true   // swallow taps behind it
+        }
+        titleView = TextView(this).apply { textSize = 20f; setTypeface(typeface, Typeface.BOLD) }
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = dp(56); setPadding(dp(4), 0, dp(16), 0)
+            addView(iconButton(R.drawable.ic_menu, "Menu") { if (drawer.visibility == View.VISIBLE) closeDrawer() else openDrawer() })
+            addView(titleView, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(12) })
+        }
+        val body = FrameLayout(this).apply {
+            addView(scroll)
+            addView(scrim)
+            addView(drawer, FrameLayout.LayoutParams(dp(DRAWER_DP), FrameLayout.LayoutParams.MATCH_PARENT))
+        }
+        actionBar?.hide()   // our own bar: the ☰ bubble sits top-left whatever the theme does
+        setContentView(LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; fitsSystemWindows = true
+            setBackgroundColor(themeColor(android.R.attr.colorBackground))
+            addView(bar)
+            addView(body, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        })
+    }
+
+    override fun onSaveInstanceState(out: Bundle) {
+        super.onSaveInstanceState(out)
+        out.putString("tab", tab.name)
     }
 
     override fun onResume() {
@@ -42,31 +94,120 @@ class MainActivity : Activity() {
         redraw()
     }
 
+    private fun openDrawer() {
+        drawMenu()
+        drawer.visibility = View.VISIBLE
+        scrim.visibility = View.VISIBLE
+        drawer.animate().translationX(0f).setDuration(200).start()
+        scrim.animate().alpha(1f).setDuration(200).start()
+        onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, closeOnBack)
+    }
+
+    private fun closeDrawer() {
+        onBackInvokedDispatcher.unregisterOnBackInvokedCallback(closeOnBack)
+        drawer.animate().translationX(-dp(DRAWER_DP).toFloat()).setDuration(180).withEndAction { drawer.visibility = View.GONE }.start()
+        scrim.animate().alpha(0f).setDuration(180).withEndAction { scrim.visibility = View.GONE }.start()
+    }
+
+    private fun go(t: Tab) {
+        tab = t
+        redraw()
+        scroll.scrollTo(0, 0)
+    }
+
+    private fun drawMenu() {
+        drawer.removeAllViews()
+        drawer.addView(TextView(this).apply {
+            text = "SG Bus"; textSize = 20f; setTypeface(typeface, Typeface.BOLD); setPadding(dp(24), dp(8), dp(24), dp(16))
+        })
+        val accent = themeColor(android.R.attr.colorAccent)
+        Tab.entries.forEach { t ->
+            val warn = if (t == Tab.SETUP && !Locator.hasPermission(this)) "  ⚠" else ""
+            drawer.addView(TextView(this).apply {
+                text = t.label + warn; textSize = 16f; gravity = Gravity.CENTER_VERTICAL
+                minHeight = dp(52); setPadding(dp(24), 0, dp(24), 0)
+                if (t == tab) {
+                    setTypeface(typeface, Typeface.BOLD); setTextColor(accent)
+                    setBackgroundColor(accent and 0x00FFFFFF or 0x22000000)
+                }
+                setOnClickListener { closeDrawer(); go(t) }
+            })
+        }
+    }
+
     private fun redraw() {
+        titleView.text = tab.title
         col.removeAllViews()
+        when (tab) {
+            Tab.MAIN -> drawMain()
+            Tab.SETUP -> drawSetup()
+            Tab.ABOUT -> drawAbout()
+        }
+        if (drawer.visibility == View.VISIBLE) drawMenu()
+    }
+
+    private fun drawMain() {
+        if (!Locator.hasPermission(this)) {
+            col.label("⚠ Location is off, so widgets can't tell which stop is nearest.")
+            col.button("Fix in Setup") { go(Tab.SETUP) }
+        }
         col.heading("My stops")
         val regs = Store.registrations(this)
         if (regs.isEmpty()) col.label("No stops yet. Add the stops you take buses from; a widget shows whichever is nearest.")
-        regs.forEach { r ->
-            val gone = if (Directory.stops(this)[r.stop] == null) " ⚠ no longer in LTA's stop list" else ""
-            col.label("🚏 ${stopLine(this, r.stop)}$gone\n     ${r.services.joinToString(", ").ifEmpty { "(no buses ticked)" }}")
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            row.button("Buses") { Directory.stops(this)[r.stop]?.let { s -> pickServices(this, s, r.services) { save(Registration(r.stop, it)) } } }
-            if (r.services.size > 1) row.button("Order") { reorderServices(this, "Bus order at ${Directory.name(this, r.stop)}", r.services) { save(Registration(r.stop, it)) } }
-            row.button("Remove") {
-                AlertDialog.Builder(this).setMessage("Remove ${stopLine(this, r.stop)}?")
-                    .setPositiveButton("Remove") { _, _ -> Store.saveRegistrations(this, Store.registrations(this).filter { it.stop != r.stop }); redraw() }
-                    .setNegativeButton("Cancel", null).show()
-            }
-            col.addView(row)
-        }
+        if (regs.size > 1) col.label("$DRAG_HINT The top stop is shown when your location can't be found.", 13f)
+            .setTextColor(themeColor(android.R.attr.textColorSecondary))
+        col.addView(dragList(regs, ::stopRow) { order ->
+            Store.saveRegistrations(this, order)
+            Widgets.renderAll(this)
+        })
         col.button("➕ Add stop near me") { addNearMe() }
         col.button("🔎 Add stop by code or name") { addBySearch() }
-        if (regs.none { it.stop == "42139" }) col.button("Quick add: Avenue Villa (42139) · 970") {
-            save(Registration("42139", listOf("970")))
-        }
 
-        col.heading("Setup")
+        col.heading("Widgets")
+        col.label("Tap a widget for live times: refreshes every 20 s for 15 min. Long-press › settings to pin a widget to one stop.", 14f)
+        val mgr = getSystemService(AppWidgetManager::class.java)
+        if (mgr.isRequestPinAppWidgetSupported) {
+            col.button("Add large widget (4×2)") { mgr.requestPinAppWidget(ComponentName(this, BusWidgetLarge::class.java), null, null) }
+            col.button("Add small widget (2×1)") { mgr.requestPinAppWidget(ComponentName(this, BusWidgetSmall::class.java), null, null) }
+        } else col.label("Long-press your home screen › Widgets › SG Bus.", 14f)
+    }
+
+    /** One My-stops row: ⠿ handle · stop + its buses + [Buses] [Bus order] · 🗑. */
+    private fun stopRow(r: Registration): Pair<View, View> {
+        val handle = dragHandle()
+        val gone = if (Directory.stops(this)[r.stop] == null) " ⚠ no longer in LTA's stop list" else ""
+        val text = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        text.addView(TextView(this).apply { this.text = "${stopLine(this@MainActivity, r.stop)}$gone"; textSize = 16f })
+        text.addView(TextView(this).apply {
+            this.text = r.services.joinToString(", ").ifEmpty { "(no buses ticked)" }; textSize = 14f
+            setTextColor(themeColor(android.R.attr.textColorSecondary))
+        })
+        val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        buttons.button("Buses") { Directory.stops(this)[r.stop]?.let { s -> pickServices(this, s, r.services) { save(Registration(r.stop, it)) } } }
+        if (r.services.size > 1) buttons.button("Bus order") {
+            reorderServices(this, "Bus order at ${Directory.name(this, r.stop)}", r.services) { save(Registration(r.stop, it)) }
+        }
+        text.addView(buttons)
+        val trash = iconButton(R.drawable.ic_delete, "Delete ${r.stop}") {
+            AlertDialog.Builder(this).setMessage("Delete ${stopLine(this, r.stop)}?")
+                .setPositiveButton("Delete") { _, _ ->
+                    Store.saveRegistrations(this, Store.registrations(this).filter { it.stop != r.stop })
+                    Widgets.renderAll(this)
+                    redraw()
+                }
+                .setNegativeButton("Cancel", null).show()
+        }
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(6), 0, dp(6))
+        }
+        row.addView(handle)
+        row.addView(text, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(trash)
+        return row to handle
+    }
+
+    private fun drawSetup() {
+        col.heading("Permissions")
         val fine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         col.label(if (fine) "✅ Location allowed (picks your nearest stop)" else "❌ Location not allowed — widgets can't tell which stop is nearest")
         if (!fine) col.button("Allow location") { askLocation() }
@@ -80,16 +221,10 @@ class MainActivity : Activity() {
                 startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
             }
         }
+    }
 
-        col.heading("Widgets")
-        col.label("Tap a widget for live times: refreshes every 20 s for 15 min. Long-press › settings to pin a widget to one stop.", 14f)
-        val mgr = getSystemService(AppWidgetManager::class.java)
-        if (mgr.isRequestPinAppWidgetSupported) {
-            col.button("Add large widget (4×2)") { mgr.requestPinAppWidget(ComponentName(this, BusWidgetLarge::class.java), null, null) }
-            col.button("Add small widget (2×1)") { mgr.requestPinAppWidget(ComponentName(this, BusWidgetSmall::class.java), null, null) }
-        } else col.label("Long-press your home screen › Widgets › SG Bus.", 14f)
-
-        col.heading("About")
+    private fun drawAbout() {
+        col.heading("SG Bus")
         val ver = packageManager.getPackageInfo(packageName, 0)
         col.label("Version ${ver.versionName} (build ${ver.longVersionCode})", 13f)
         val ids = Widgets.ids(this)
@@ -106,6 +241,8 @@ class MainActivity : Activity() {
         }
         col.label("Arrival data: arrivelah (busrouter.sg), from LTA DataMall. Not affiliated with LTA.", 12f)
     }
+
+    private companion object { const val DRAWER_DP = 280 }
 
     private fun save(r: Registration) {
         Store.saveRegistrations(this, upsert(Store.registrations(this), r))

@@ -1,1 +1,1 @@
-Reorder the buses at each stop, and the stops list now updates itself every month.
+New look: a ☰ menu with Main, Setup and About. Drag your stops into order, and delete one with the trash can.
