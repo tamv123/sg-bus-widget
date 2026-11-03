@@ -247,5 +247,6 @@ all of them and fetches each stop once per tick.
   Hand-rolled overlay (no AndroidX DrawerLayout); back closes it. Setup shows ⚠ in the menu, and Main a banner, while location is off.
 - **My stops:** drag by the ⠿ handle (or long-press a row) to reorder, with a hint line; the top stop is the fallback when there's no location fix.
   🗑 trash icon deletes (with confirm). Bus order dialog is drag-and-drop too. Quick add (Avenue Villa) removed.
+- **2×1 widget shows 2 buses**: new 76dp size bucket (Samsung 1-row ≈ 93dp tall used to fall to the 40dp one-bus layout).
 - Built and unit-tested; **not run on the emulator** (WSL lost /dev/kvm permission). First look is on Victor's phone.
 
