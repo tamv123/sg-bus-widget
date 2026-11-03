@@ -240,3 +240,13 @@ all of them and fetches each stop once per tick.
   `ACCESS_BACKGROUND_LOCATION` from the manifest before release**: it triggers Play's background-location review, and the app wouldn't need it.
 - Create the app in Play Console, grant `play-publisher` release rights on it, upload the first bundle, then `scripts/publish.sh`.
 - Chronometer countdown trial (only worth it if 20 s steps feel too coarse on the phone).
+
+## 9. v0.3 UI (2026-11-03, Victor's request)
+
+- ☰ bubble top-left opens a left drawer with three tabs: **Main** (My stops + Widgets), **Setup** (permissions), **About** (version + diagnostics).
+  Hand-rolled overlay (no AndroidX DrawerLayout); back closes it. Setup shows ⚠ in the menu, and Main a banner, while location is off.
+- **My stops:** drag by the ⠿ handle (or long-press a row) to reorder, with a hint line; the top stop is the fallback when there's no location fix.
+  🗑 trash icon deletes (with confirm). Bus order dialog is drag-and-drop too. Quick add (Avenue Villa) removed.
+- **2×1 widget shows 2 buses**: new 76dp size bucket (Samsung 1-row ≈ 93dp tall used to fall to the 40dp one-bus layout).
+- Built and unit-tested; **not run on the emulator** (WSL lost /dev/kvm permission). First look is on Victor's phone.
+

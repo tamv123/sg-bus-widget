@@ -39,12 +39,14 @@ object Widgets {
         listOf(R.id.e3a, R.id.e3b, R.id.e3c), listOf(R.id.e4a, R.id.e4b, R.id.e4c), listOf(R.id.e5a, R.id.e5b, R.id.e5c),
     )
     // the launcher picks the largest of these that fits; every size is the same layout with less hidden
-    private val SIZES = listOf(SizeF(110f, 40f), SizeF(110f, 100f), SizeF(180f, 40f), SizeF(180f, 100f),
-        SizeF(250f, 40f), SizeF(250f, 100f), SizeF(250f, 150f), SizeF(250f, 200f), SizeF(250f, 260f))
+    // 76dp: a 1-row widget on Samsung is ~93dp tall, room for 2 buses (header ~18 + 2 × ~22 + padding 14)
+    private val SIZES = listOf(SizeF(110f, 40f), SizeF(110f, TWO_ROW_DP), SizeF(110f, 100f), SizeF(180f, 40f), SizeF(180f, TWO_ROW_DP),
+        SizeF(180f, 100f), SizeF(250f, 40f), SizeF(250f, TWO_ROW_DP), SizeF(250f, 100f), SizeF(250f, 150f), SizeF(250f, 200f), SizeF(250f, 260f))
     private val HHMM = DateTimeFormatter.ofPattern("HH:mm").withZone(SGT)
 
     /** Second-nearest stop only fits from about 4×3 up (portrait = minWidth × maxHeight, per sg-pm25-widget). */
     const val SECOND_STOP_MIN_DP = 200
+    private const val TWO_ROW_DP = 76f
 
     fun ids(ctx: Context): List<Int> {
         val mgr = AppWidgetManager.getInstance(ctx)
@@ -87,7 +89,8 @@ object Widgets {
         val etaCols = if (w < 180) 2 else 3
         val first = st.views.firstOrNull()
         val second = st.views.getOrNull(1)?.takeIf { h >= SECOND_STOP_MIN_DP }
-        val rows = if (compact) 1 else ((h - 50 - (if (second != null) 44 else 0)) / 22).toInt().coerceIn(1, ROWS.size)
+        // compact (no status line): 1 bus on a short widget, 2 once there's TWO_ROW_DP of height
+        val rows = if (compact) (if (h >= TWO_ROW_DP) 2 else 1) else ((h - 50 - (if (second != null) 44 else 0)) / 22).toInt().coerceIn(1, ROWS.size)
 
         v.setTextViewText(R.id.stop, when {
             first != null -> Directory.name(ctx, first.stop)
