@@ -42,3 +42,7 @@
   `time`, not on its `next`/`next2` slot. `monitored: 0` means a schedule estimate, shown as `~12`.
 - Stops / services: `https://data.busrouter.sg/v1/{stops,services}.min.json`, refreshed every 30 days.
   A copy is bundled in `app/src/main/assets/`.
+
+## License
+
+By contributing, you agree your contributions are licensed under the repo's [MIT License](LICENSE).

@@ -13,6 +13,7 @@ It's not on Google Play yet (see [What's next](#whats-next)).
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branch/PR workflow, conventions, the Android gotchas we've already hit |
 | [PLAN.md](PLAN.md) | Research (why we built it), design decisions, phase-by-phase results |
 | [PRIVACY.md](PRIVACY.md) | Privacy policy (also published as the Play listing's policy URL) |
+| [LICENSE](LICENSE) | MIT |
 
 ## How it works (one paragraph)
 
@@ -90,3 +91,7 @@ from Play automatically, so it never collides.
 
 Arrivals from [arrivelah](https://github.com/cheeaun/arrivelah); stops and services from
 [busrouter.sg](https://busrouter.sg). Both are based on LTA DataMall. This app is independent of LTA.
+
+## License
+
+[MIT](LICENSE) © 2026 Victor Tam. Contributions are accepted under the same licence.
