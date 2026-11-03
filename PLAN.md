@@ -223,9 +223,20 @@ all of them and fetches each stop once per tick.
 - One bug was caught on the emulator: a plain `<View>` spacer made the widget show "Can't load widget", because
   RemoteViews doesn't allow it. A `FrameLayout` replaced it.
 
+## 8. v0.2 (2026-11-02)
+
+- ✅ **Bus order:** an Order button per stop, and per pinned widget. A small widget only fits the first buses, so order decides what it shows.
+- ✅ **Stops list refresh:** downloads every 30 days, on opening the app or on a widget tap; a failed try waits a day. Both files must
+  parse and be plausibly sized before either replaces the current pair. Checked on the emulator: failed TLS keeps the current list, a good
+  download swaps it, an HTML block page is rejected. The real download is not proven on a device yet (Zscaler breaks TLS on the emulator).
+- ✅ **Location disclosure** before Android's prompt; a stop dropped from LTA's list is flagged in My stops.
+- ✅ Idle widgets no longer say "no live info" once old buses have passed; the first live frame no longer shows a bogus 07:30 fetch time.
+- ✅ **Release pipeline:** upload key `~/.android-keys/sg-bus-upload.jks` (**back it up**), `scripts/publish.sh`, `scripts/send_apk.sh`, `PRIVACY.md`, published at https://gist.github.com/tamv123/28d5763300292b49df677c05b6cfc6ed.
+
+**2026-11-03:** Victor tested v0.2 on the S25+ and accepted it as the first version. PRs #1 and #2 merged. README and CONTRIBUTING.md added for collaborators.
+
 **Not done yet (next):**
-- Check it on the S25+ (One UI sizes and the location FGS type).
-- Reorder buses within a stop.
-- Monthly refresh of the stops directory. It's bundled in assets for now (busrouter snapshot of 2026-10-29).
-- Chronometer countdown trial.
-- Phase 3 Play release: upload key, `publish.sh`, disclosure, privacy gist.
+- Check it on the S25+ (One UI sizes and the location FGS type). If One UI grants the location type, **remove
+  `ACCESS_BACKGROUND_LOCATION` from the manifest before release**: it triggers Play's background-location review, and the app wouldn't need it.
+- Create the app in Play Console, grant `play-publisher` release rights on it, upload the first bundle, then `scripts/publish.sh`.
+- Chronometer countdown trial (only worth it if 20 s steps feel too coarse on the phone).

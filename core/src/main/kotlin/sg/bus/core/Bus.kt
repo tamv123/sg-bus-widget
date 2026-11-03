@@ -120,6 +120,31 @@ fun searchStops(query: String, stops: Map<String, Stop>, n: Int = 20): List<Stop
         .sortedBy { it.name }.take(n)
 }
 
+/** This list with the item at [index] moved [by] places (-1 = up); out-of-range moves leave it unchanged. */
+fun <T> List<T>.moved(index: Int, by: Int): List<T> {
+    val to = index + by
+    if (index !in indices || to !in indices) return this
+    return toMutableList().apply { add(to, removeAt(index)) }
+}
+
+/** The stops directory is refreshed monthly; a failed try waits a day, so a dead host isn't hit on every tap. */
+object DirectoryRefresh {
+    val MAX_AGE: Duration = Duration.ofDays(30)
+    val RETRY: Duration = Duration.ofDays(1)
+    const val MIN_STOPS = 4000   // bundled snapshot has 5208: far fewer means a broken download, not a smaller Singapore
+
+    fun due(lastOkMs: Long, lastTryMs: Long, nowMs: Long): Boolean =
+        nowMs - lastOkMs >= MAX_AGE.toMillis() && nowMs - lastTryMs >= RETRY.toMillis()
+
+    /** Throws [ApiException] unless both downloads parse and are about the size we expect; nothing is kept otherwise. */
+    fun validate(stopsBody: String, servicesBody: String) {
+        val stops = try { parseStops(stopsBody) } catch (e: Exception) { throw ApiException("stops list unreadable") }
+        val at = try { parseStopServices(servicesBody) } catch (e: Exception) { throw ApiException("services list unreadable") }
+        if (stops.size < MIN_STOPS) throw ApiException("stops list too small (${stops.size})")
+        if (at.size < stops.size / 2) throw ApiException("services list too small (${at.size} stops)")
+    }
+}
+
 /** A stop the user registered, with the services they care about there (in their order). */
 @Serializable
 data class Registration(val stop: String, val services: List<String>)

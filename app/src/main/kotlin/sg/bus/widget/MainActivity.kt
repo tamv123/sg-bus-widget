@@ -38,6 +38,7 @@ class MainActivity : Activity() {
         super.onResume()
         // opening the app re-attaches the widgets' taps (a force-stop cancels their PendingIntents)
         Widgets.renderAll(this)
+        Directory.refreshIfDue(this)
         redraw()
     }
 
@@ -47,9 +48,11 @@ class MainActivity : Activity() {
         val regs = Store.registrations(this)
         if (regs.isEmpty()) col.label("No stops yet. Add the stops you take buses from; a widget shows whichever is nearest.")
         regs.forEach { r ->
-            col.label("🚏 ${stopLine(this, r.stop)}\n     ${r.services.joinToString(", ").ifEmpty { "(no buses ticked)" }}")
+            val gone = if (Directory.stops(this)[r.stop] == null) " ⚠ no longer in LTA's stop list" else ""
+            col.label("🚏 ${stopLine(this, r.stop)}$gone\n     ${r.services.joinToString(", ").ifEmpty { "(no buses ticked)" }}")
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             row.button("Buses") { Directory.stops(this)[r.stop]?.let { s -> pickServices(this, s, r.services) { save(Registration(r.stop, it)) } } }
+            if (r.services.size > 1) row.button("Order") { reorderServices(this, "Bus order at ${Directory.name(this, r.stop)}", r.services) { save(Registration(r.stop, it)) } }
             row.button("Remove") {
                 AlertDialog.Builder(this).setMessage("Remove ${stopLine(this, r.stop)}?")
                     .setPositiveButton("Remove") { _, _ -> Store.saveRegistrations(this, Store.registrations(this).filter { it.stop != r.stop }); redraw() }
@@ -66,7 +69,7 @@ class MainActivity : Activity() {
         col.heading("Setup")
         val fine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         col.label(if (fine) "✅ Location allowed (picks your nearest stop)" else "❌ Location not allowed — widgets can't tell which stop is nearest")
-        if (!fine) col.button("Allow location") { requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 1) }
+        if (!fine) col.button("Allow location") { askLocation() }
         val notif = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         col.label(if (notif) "✅ Notifications allowed (live times in the shade)" else "⚠ Notifications off — live times still update the widget")
         if (!notif) col.button("Allow notifications") { requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2) }
@@ -92,6 +95,9 @@ class MainActivity : Activity() {
         val ids = Widgets.ids(this)
         col.label("Widgets placed: ${ids.size} · live service: ${Store.diag(this, "fgs") ?: "not run yet"}", 13f)
         col.label("Last fix: ${Store.diag(this, "loc") ?: "–"}", 13f)
+        val dirAt = Store.diag(this, "dir.ok")?.toLongOrNull()?.let { DateTimeFormatter.ofPattern("d MMM yyyy").withZone(SGT).format(Instant.ofEpochMilli(it)) }
+        val dirErr = Store.diag(this, "dir.err")?.takeIf { it.isNotEmpty() }?.let { " · last update failed: $it" } ?: ""
+        col.label("Stops list: ${Directory.stops(this).size} stops, ${dirAt?.let { "updated $it" } ?: "built in"}$dirErr", 13f)
         ids.forEach { id ->
             val st = Store.state(this, id)
             val at = if (st.fetchedAtMs > 0) DateTimeFormatter.ofPattern("HH:mm:ss").withZone(SGT).format(Instant.ofEpochMilli(st.fetchedAtMs)) else "never"
@@ -111,9 +117,21 @@ class MainActivity : Activity() {
         save(Registration(s.code, it))
     }
 
+    /** Plain-language disclosure before Android's own prompt (Play's prominent-disclosure rule). */
+    private fun askLocation() {
+        AlertDialog.Builder(this).setTitle("Location")
+            .setMessage("SG Bus uses your location to find which of your stops is nearest. It reads it when you tap a widget " +
+                "and during the 15-minute live session that follows, even if the app is closed.\n\n" +
+                "Your location stays on your phone. Only the bus stop code is sent, to fetch arrival times.")
+            .setPositiveButton("Continue") { _, _ ->
+                requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 1)
+            }
+            .setNegativeButton("Not now", null).show()
+    }
+
     private fun addNearMe() {
         if (!Locator.hasPermission(this)) {
-            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 1)
+            askLocation()
             return
         }
         val wait = AlertDialog.Builder(this).setMessage("Finding stops near you…").show()

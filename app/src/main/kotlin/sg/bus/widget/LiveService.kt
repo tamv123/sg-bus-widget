@@ -68,6 +68,7 @@ class LiveService : Service() {
                     Store.saveState(this, id, st.copy(sessionEndMs = Session.endFrom(Instant.now()).toEpochMilli()))
                     Widgets.render(this, id)   // "● Live" straight away, before the first fetch lands
                 }
+                Directory.refreshIfDue(this)
                 restartLoop()
             }
             else -> restartLoop()                // sticky restart after the process was killed: carry on if still live

@@ -118,7 +118,7 @@ object Widgets {
                     // idle: clock times, since minutes frozen at the last fetch would be wrong by the time you look
                     bus != null && !live -> HHMM.format(bus.at)
                     bus != null -> etaLabel(bus, now).let { if (c == 0 && etaCols == 3 && it.last().isDigit()) "$it min" else it }
-                    c == 0 && first.fetched(st) -> "no live info"
+                    c == 0 && live && first.fetched(st) -> "no live info"
                     c == 0 -> "–"
                     else -> ""
                 })
@@ -145,7 +145,8 @@ object Widgets {
         v.setViewVisibility(R.id.status, if (compact) View.GONE else View.VISIBLE)
         v.setTextViewText(R.id.status, when {
             problem != null && live -> "⚠ $problem"
-            live -> "● Live · ${(st.sessionEndMs - now.toEpochMilli() + 59_999) / 60_000} min left · ${HHMM.format(Instant.ofEpochMilli(st.fetchedAtMs))}"
+            live -> "● Live · ${(st.sessionEndMs - now.toEpochMilli() + 59_999) / 60_000} min left" +
+                (if (st.fetchedAtMs > 0) " · ${HHMM.format(Instant.ofEpochMilli(st.fetchedAtMs))}" else "")
             st.fetchedAtMs > 0 -> "Tap for live times · last ${HHMM.format(Instant.ofEpochMilli(st.fetchedAtMs))}"
             else -> "Tap for live bus times"
         })
