@@ -240,9 +240,14 @@ class MainActivity : Activity() {
             col.label("#$id $mode · last fetch $at${st.views.firstOrNull()?.error?.let { " · ⚠ $it" } ?: ""}", 13f)
         }
         col.label("Arrival data: arrivelah (busrouter.sg), from LTA DataMall. Not affiliated with LTA.", 12f)
+        col.button("Source code on GitHub") { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SOURCE_URL))) }
     }
 
-    private companion object { const val DRAWER_DP = 280 }
+    private companion object {
+        const val DRAWER_DP = 280
+        /** This app's source code. */
+        const val SOURCE_URL = "https://github.com/tamv123/sg-bus-widget"
+    }
 
     private fun save(r: Registration) {
         Store.saveRegistrations(this, upsert(Store.registrations(this), r))

@@ -22,7 +22,7 @@ android {
         minSdk = 34
         targetSdk = 36
         versionCode = 3
-        versionName = "0.3.0"
+        versionName = "0.3.1"
     }
     signingConfigs {
         if (signingProps.isNotEmpty()) create("upload") {
