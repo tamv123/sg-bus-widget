@@ -40,7 +40,7 @@ object Usage {
     }
 
     /** Random, made on this phone, not derived from anything about you or the device. Gone on uninstall. */
-    @Synchronized private fun install(ctx: Context): String =
+    @Synchronized fun install(ctx: Context): String =
         prefs(ctx).getString("install", null) ?: UUID.randomUUID().toString().also { prefs(ctx).edit().putString("install", it).commit() }
 
     @Synchronized private fun load(ctx: Context): UsageLog =

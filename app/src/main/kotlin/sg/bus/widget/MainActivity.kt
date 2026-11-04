@@ -255,6 +255,7 @@ class MainActivity : Activity() {
         col.label("Widgets placed: ${ids.size} · live service: ${Store.diag(this, "fgs") ?: "not run yet"}", 13f)
         col.label("Last fix: ${Store.diag(this, "loc") ?: "–"}", 13f)
         col.label("Usage counts: ${if (Usage.enabled(this)) Store.diag(this, "usage") ?: "on, nothing sent yet" else "off"}", 13f)
+        if (Usage.enabled(this)) col.label("Install ID: ${Usage.install(this)}", 12f).setTextIsSelectable(true)
         val dirAt = Store.diag(this, "dir.ok")?.toLongOrNull()?.let { DateTimeFormatter.ofPattern("d MMM yyyy").withZone(SGT).format(Instant.ofEpochMilli(it)) }
         val dirErr = Store.diag(this, "dir.err")?.takeIf { it.isNotEmpty() }?.let { " · last update failed: $it" } ?: ""
         col.label("Stops list: ${Directory.stops(this).size} stops, ${dirAt?.let { "updated $it" } ?: "built in"}$dirErr", 13f)
