@@ -67,6 +67,7 @@ class LiveService : Service() {
                     val st = Store.state(this, id)
                     Store.saveState(this, id, st.copy(sessionEndMs = Session.endFrom(Instant.now()).toEpochMilli()))
                     Widgets.render(this, id)   // "● Live" straight away, before the first fetch lands
+                    Usage.tap(this)
                 }
                 Directory.refreshIfDue(this)
                 restartLoop()

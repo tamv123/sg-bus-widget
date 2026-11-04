@@ -95,3 +95,12 @@ Arrivals from [arrivelah](https://github.com/cheeaun/arrivelah); stops and servi
 ## License
 
 [MIT](LICENSE) © 2026 Victor Tam. Contributions are accepted under the same licence.
+
+## Usage counts backend
+
+Anonymous per-day counts go to Firestore `sgbus_usage` in project `ria-chatbot-52232f7f` (asia-southeast1).
+`backend/firestore.rules` lets a phone create/overwrite only its own `<install>_<day>` record in the exact shape
+`sg.bus.core.usageFirestoreJson` writes; nobody can read, list or delete through the rules. Deploy rule changes with
+`backend/deploy_rules.sh` (allow a few minutes to propagate). Records expire via a TTL on `expireAt` (~13 months).
+The 7am report in victors-assistant reads them with the read-only `sgbus-reader` service account.
+

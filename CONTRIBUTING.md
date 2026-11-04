@@ -17,8 +17,10 @@
 ## Ground rules
 
 - **No third-party Android dependencies** without discussion. The app is platform APIs + `org.json`.
-- **Nothing leaves the phone** except the arrivelah/busrouter requests (see `PRIVACY.md`). Any
-  change to that means updating `PRIVACY.md` *and* the published policy gist.
+- **Nothing leaves the phone** except the arrivelah/busrouter requests and the anonymous usage counts
+  (`sg.bus.core.Usage`, see `PRIVACY.md`). Any change to that, including a new field in the usage record, means
+  updating `PRIVACY.md`, the published policy gist, the Play Data safety form, the in-app explainer in Setup, and
+  `backend/firestore.rules` (it rejects unknown fields, so a new field fails until the rules allow it).
 - **Never commit secrets**: signing keys, `*.properties` with passwords, Play service-account JSON.
   `.gitignore` covers the usual names; check `git status` anyway.
 - Errors are shown on the widget (`No signal — retrying`, `arrivelah down`), never swallowed.
