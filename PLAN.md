@@ -260,3 +260,13 @@ all of them and fetches each stop once per tick.
   Background is an ImageView tinted via setColorFilter + setImageAlpha (keeps the rounded corners); text switches to a
   light palette on dark colours (WCAG luminance < 0.5). Core: Look.kt + LookTest (4).
 - Not emulator-tested (no /dev/kvm); phone check needed, especially that the 2×1 status line isn't clipped.
+
+## 12. v0.5.2 text size + exact-fit layout (2026-11-05, Victor's S25+ screenshot)
+
+- Bug: the 2×1's status line was half-clipped on the S25+. The 90dp size step assumed default-size text; real line
+  heights were taller (font padding / font scale). Fix: lay out for the widget's REAL size (OPTION_APPWIDGET_SIZES added
+  to the RemoteViews size map, max 16) and compute rows from line heights × (Android font scale × user text size):
+  core fitRows() prefers 2 buses + status, then 2 buses, then 1. 250dp-wide fallbacks dropped (width only matters < / ≥ 180).
+- Setup › Widget look: Text size slider 70–130 % in 5 % steps (scales every widget text + the bus-number column);
+  preview follows it. Default look is now Sky, 30 % transparent (fresh installs only).
+- LookTest 9 cases incl. S25+ 93dp: normal text → 2 buses + status; 115 % text → 2 buses, no status; 85 % slider → back.

@@ -1,1 +1,1 @@
-Pick your widget's background colour and transparency in ☰ › Setup. The 2×1 widget now shows the "Tap for live times" hint under its two buses.
+Adjustable widget text size in ☰ › Setup. Small widgets now fit their layout to their real size, so the 2×1 keeps its "Tap for live times" line whenever it fits. New default look: light blue, 30% transparent.
