@@ -9,6 +9,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.SizeF
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import java.time.Instant
@@ -19,6 +20,8 @@ import sg.bus.core.StopView
 import sg.bus.core.WidgetState
 import sg.bus.core.distanceLabel
 import sg.bus.core.etaLabel
+import sg.bus.core.fitRows
+import sg.bus.core.secondStopDp
 import sg.bus.core.upcoming
 
 open class BusWidgetProvider : AppWidgetProvider() {
@@ -44,18 +47,17 @@ object Widgets {
         listOf(R.id.e0a, R.id.e0b, R.id.e0c), listOf(R.id.e1a, R.id.e1b, R.id.e1c), listOf(R.id.e2a, R.id.e2b, R.id.e2c),
         listOf(R.id.e3a, R.id.e3b, R.id.e3c), listOf(R.id.e4a, R.id.e4b, R.id.e4c), listOf(R.id.e5a, R.id.e5b, R.id.e5c),
     )
-    // the launcher picks the largest of these that fits; every size is the same layout with less hidden
-    // 76dp: a 1-row widget on Samsung is ~93dp tall, room for 2 buses (header ~18 + 2 × ~22 + padding 14)
-    // 90dp: Samsung's ~93dp 1-row widget also fits the status line ("Tap for live times") under the 2 buses
-    private val SIZES = listOf(110f, 180f, 250f).flatMap { w ->
-        listOf(40f, TWO_ROW_DP, STATUS_DP, 100f).map { SizeF(w, it) }
-    } + listOf(SizeF(250f, 150f), SizeF(250f, 200f), SizeF(250f, 260f))
+    // Fallback sizes; the launcher picks the largest that fits. The widget's REAL sizes (OPTION_APPWIDGET_SIZES) are
+    // added per widget, so on launchers that report them the layout is fitted to the exact height (the 2×1's status
+    // line was clipped on an S25+ when it was laid out for a 90dp step). RemoteViews takes at most 16 sizes.
+    private val FALLBACK_SIZES = listOf(110f, 180f).flatMap { w -> listOf(40f, 76f, 100f).map { SizeF(w, it) } } +
+        listOf(SizeF(180f, 150f), SizeF(180f, 200f), SizeF(180f, 260f))
+    private val TEXT_SP = mapOf(R.id.stop to 13f, R.id.dist to 12f, R.id.stop2 to 12f, R.id.line2 to 13f, R.id.status to 11f) +
+        NOS.associateWith { 15f } + ETAS.flatten().associateWith { 15f }
     private val HHMM = DateTimeFormatter.ofPattern("HH:mm").withZone(SGT)
 
     /** Second-nearest stop only fits from about 4×3 up (portrait = minWidth × maxHeight, per sg-pm25-widget). */
     const val SECOND_STOP_MIN_DP = 200
-    private const val TWO_ROW_DP = 76f
-    private const val STATUS_DP = 90f
 
     fun ids(ctx: Context): List<Int> {
         val mgr = AppWidgetManager.getInstance(ctx)
@@ -77,7 +79,10 @@ object Widgets {
         val st = if (pin != null && st0.views.firstOrNull()?.stop != pin.stop) st0.copy(views = listOf(StopView(pin.stop, pin.services))) else st0
         val now = Instant.now()
         val tap = tapIntent(ctx, id)
-        val views = RemoteViews(SIZES.associateWith { build(ctx, st, pinned, hasRegs, it.width, it.height, now).apply {
+        val real = AppWidgetManager.getInstance(ctx).getAppWidgetOptions(id)
+            .getParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES, SizeF::class.java).orEmpty()
+        val sizes = (real + FALLBACK_SIZES).distinct().take(16)
+        val views = RemoteViews(sizes.associateWith { build(ctx, st, pinned, hasRegs, it.width, it.height, now).apply {
             setOnClickPendingIntent(R.id.root, tap)
         } })
         AppWidgetManager.getInstance(ctx).updateAppWidget(id, views)
@@ -99,12 +104,18 @@ object Widgets {
         v.setInt(R.id.bg, "setImageAlpha", look.alpha)
         v.setTextColor(R.id.stop, tc.main)
         v.setTextColor(R.id.stop2, tc.secondary)
+        // user's text size; sp already includes Android's own font-size setting, so the fit multiplies both
+        val scale = look.textScale
+        TEXT_SP.forEach { (id, sp) -> v.setTextViewTextSize(id, TypedValue.COMPLEX_UNIT_SP, sp * scale) }
+        NOS.forEach { v.setViewLayoutWidth(it, 52f * scale, TypedValue.COMPLEX_UNIT_DIP) }
+        val fontScale = ctx.resources.configuration.fontScale * scale
         val live = st.sessionEndMs > now.toEpochMilli()
-        val compact = h < STATUS_DP   // no status line; a ● in the header shows "live" instead
         val etaCols = if (w < 180) 2 else 3
         val first = st.views.firstOrNull()
         val second = st.views.getOrNull(1)?.takeIf { h >= SECOND_STOP_MIN_DP }
-        val rows = if (h < TWO_ROW_DP) 1 else if (h < 100) 2 else ((h - 50 - (if (second != null) 44 else 0)) / 22).toInt().coerceIn(1, ROWS.size)
+        val fit = fitRows(h, fontScale, ROWS.size, if (second != null) secondStopDp(fontScale) else 0f)
+        val rows = fit.rows
+        val compact = !fit.status   // no room for the status line: a ● in the header shows "live" instead
 
         v.setTextViewText(R.id.stop, when {
             first != null -> Directory.name(ctx, first.stop)

@@ -278,6 +278,9 @@ class MainActivity : Activity() {
             }
             val c = look.text
             stop.setTextColor(c.main); no.setTextColor(c.busNo); eta.setTextColor(c.main); status.setTextColor(c.grey)
+            val k = look.textScale
+            stop.textSize = 13f * k; no.textSize = 15f * k; eta.textSize = 15f * k; status.textSize = 11f * k
+            no.layoutParams = (no.layoutParams as LinearLayout.LayoutParams).apply { width = (dp(52) * k).toInt() }
         }
         fun apply() { Store.saveLook(this, look); Widgets.renderAll(this) }
 
@@ -311,7 +314,20 @@ class MainActivity : Activity() {
                 override fun onStopTrackingTouch(sb: android.widget.SeekBar) = apply()   // redraw widgets once, on release
             })
         })
-        col.label("Text turns light on dark colours. The more transparent, the more your wallpaper decides how readable it is.", 12f)
+        val sizeLabel = col.label("Text size: ${look.textPct}%", 14f)
+        col.addView(android.widget.SeekBar(this).apply {
+            max = (WidgetLook.MAX_TEXT_PCT - WidgetLook.MIN_TEXT_PCT) / 5
+            progress = (look.textPct - WidgetLook.MIN_TEXT_PCT) / 5
+            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: android.widget.SeekBar, p: Int, fromUser: Boolean) {
+                    look = look.copy(textPct = WidgetLook.MIN_TEXT_PCT + p * 5); sizeLabel.text = "Text size: ${look.textPct}%"; paint()
+                }
+                override fun onStartTrackingTouch(sb: android.widget.SeekBar) {}
+                override fun onStopTrackingTouch(sb: android.widget.SeekBar) = apply()
+            })
+        })
+        col.label("Smaller text fits more on a small widget: a 2×1 shows the \"Tap for live times\" line once it fits. " +
+            "Text turns light on dark colours. The more transparent, the more your wallpaper decides how readable it is.", 12f)
             .setTextColor(themeColor(android.R.attr.textColorSecondary))
         paint()
         col.addView(preview, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)

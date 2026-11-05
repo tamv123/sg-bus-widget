@@ -53,11 +53,13 @@ object Store {
     fun forget(ctx: Context, id: Int) = prefs(ctx).edit().remove("cfg.$id").remove("st.$id").apply()
 
     fun look(ctx: Context): WidgetLook = prefs(ctx).run {
-        WidgetLook(getInt("look.rgb", WidgetLook.WHITE), getInt("look.transparency", 0))
+        WidgetLook(getInt("look.rgb", WidgetLook.DEFAULT_RGB), getInt("look.transparency", WidgetLook.DEFAULT_TRANSPARENCY),
+            getInt("look.textPct", 100))
     }
 
     fun saveLook(ctx: Context, l: WidgetLook) =
-        prefs(ctx).edit().putInt("look.rgb", l.rgb).putInt("look.transparency", l.transparencyPct).apply()
+        prefs(ctx).edit().putInt("look.rgb", l.rgb).putInt("look.transparency", l.transparencyPct)
+            .putInt("look.textPct", l.textPct).apply()
 
     fun diag(ctx: Context, key: String): String? = prefs(ctx).getString("diag.$key", null)
     fun setDiag(ctx: Context, key: String, value: String) = prefs(ctx).edit().putString("diag.$key", value).apply()
