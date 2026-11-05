@@ -19,6 +19,7 @@ import sg.bus.core.DirectoryRefresh
 import sg.bus.core.Registration
 import sg.bus.core.Stop
 import sg.bus.core.WidgetConfig
+import sg.bus.core.WidgetLook
 import sg.bus.core.WidgetState
 import sg.bus.core.configJson
 import sg.bus.core.parseStopServices
@@ -50,6 +51,13 @@ object Store {
         prefs(ctx).edit().putString("st.$id", configJson.encodeToString(s)).commit()
 
     fun forget(ctx: Context, id: Int) = prefs(ctx).edit().remove("cfg.$id").remove("st.$id").apply()
+
+    fun look(ctx: Context): WidgetLook = prefs(ctx).run {
+        WidgetLook(getInt("look.rgb", WidgetLook.WHITE), getInt("look.transparency", 0))
+    }
+
+    fun saveLook(ctx: Context, l: WidgetLook) =
+        prefs(ctx).edit().putInt("look.rgb", l.rgb).putInt("look.transparency", l.transparencyPct).apply()
 
     fun diag(ctx: Context, key: String): String? = prefs(ctx).getString("diag.$key", null)
     fun setDiag(ctx: Context, key: String, value: String) = prefs(ctx).edit().putString("diag.$key", value).apply()

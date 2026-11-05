@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -26,6 +27,7 @@ import java.time.format.DateTimeFormatter
 import sg.bus.core.Registration
 import sg.bus.core.SGT
 import sg.bus.core.Stop
+import sg.bus.core.WidgetLook
 import sg.bus.core.distanceLabel
 import sg.bus.core.nearbyStops
 import sg.bus.core.searchStops
@@ -207,6 +209,7 @@ class MainActivity : Activity() {
     }
 
     private fun drawSetup() {
+        drawLook()
         col.heading("Permissions")
         val fine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         col.label(if (fine) "✅ Location allowed (picks your nearest stop)" else "❌ Location not allowed — widgets can't tell which stop is nearest")
@@ -221,6 +224,74 @@ class MainActivity : Activity() {
                 startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
             }
         }
+    }
+
+    /** Widget look: colour swatches + transparency, with a live preview over a wallpaper-like gradient. */
+    private fun drawLook() {
+        col.heading("Widget look")
+        var look = Store.look(this)
+        val preview = FrameLayout(this).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(0xFF4A6FA5.toInt(), 0xFFE8A87C.toInt()))
+                .apply { cornerRadius = dp(16).toFloat() }
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+        }
+        val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(8), dp(12), dp(8)) }
+        val stop = TextView(this).apply { text = "Avenue Villa"; textSize = 13f; setTypeface(typeface, Typeface.BOLD) }
+        val no = TextView(this).apply { text = "970"; textSize = 15f; setTypeface(typeface, Typeface.BOLD) }
+        val eta = TextView(this).apply { text = "3 min    14    27"; textSize = 15f }
+        val status = TextView(this).apply { text = "Tap for live times · last 08:12"; textSize = 11f }
+        card.addView(stop)
+        card.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(no, LinearLayout.LayoutParams(dp(52), LinearLayout.LayoutParams.WRAP_CONTENT))
+            addView(eta)
+        })
+        card.addView(status)
+        preview.addView(card)
+        fun paint() {
+            card.background = GradientDrawable().apply {
+                cornerRadius = dp(20).toFloat(); setColor((look.alpha shl 24) or look.rgb)
+            }
+            val c = look.text
+            stop.setTextColor(c.main); no.setTextColor(c.busNo); eta.setTextColor(c.main); status.setTextColor(c.grey)
+        }
+        fun apply() { Store.saveLook(this, look); Widgets.renderAll(this) }
+
+        val swatches = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(4), 0, dp(8)) }
+        fun drawSwatches() {
+            swatches.removeAllViews()
+            WidgetLook.PALETTE.forEach { (name, rgb) ->
+                swatches.addView(View(this).apply {
+                    contentDescription = name + if (rgb == look.rgb) ", selected" else ""
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL; setColor(0xFF000000.toInt() or rgb)
+                        val sel = rgb == look.rgb
+                        setStroke(dp(if (sel) 3 else 1), if (sel) themeColor(android.R.attr.colorAccent) else 0x55888888)
+                    }
+                    setOnClickListener { look = look.copy(rgb = rgb); paint(); drawSwatches(); apply() }
+                }, LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginEnd = dp(8) })
+            }
+        }
+        drawSwatches()
+        col.label("Background colour", 14f)
+        col.addView(android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(swatches) })
+
+        val pct = col.label("Transparency: ${look.transparencyPct}%", 14f)
+        col.addView(android.widget.SeekBar(this).apply {
+            max = 20; progress = look.transparencyPct / 5   // 5 % steps
+            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: android.widget.SeekBar, p: Int, fromUser: Boolean) {
+                    look = look.copy(transparencyPct = p * 5); pct.text = "Transparency: ${look.transparencyPct}%"; paint()
+                }
+                override fun onStartTrackingTouch(sb: android.widget.SeekBar) {}
+                override fun onStopTrackingTouch(sb: android.widget.SeekBar) = apply()   // redraw widgets once, on release
+            })
+        })
+        col.label("Text turns light on dark colours. The more transparent, the more your wallpaper decides how readable it is.", 12f)
+            .setTextColor(themeColor(android.R.attr.textColorSecondary))
+        paint()
+        col.addView(preview, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            .apply { topMargin = dp(8) })
     }
 
     private fun drawAbout() {
