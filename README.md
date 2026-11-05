@@ -7,6 +7,13 @@ It then keeps refreshing every 20 s for 15 min, and stops by itself.
 **Status: v0.2**, the first version. Verified on the emulator; Victor tested it on his Samsung S25+ (2026-11-03) and accepted it.
 It's not on Google Play yet (see [What's next](#whats-next)).
 
+## Why I built it
+
+/TLDR Motivation behind this Widget:
+I use SG BusLeh, which includes a Favourites function with separate tabs for Going out and Coming Back. However, checking my bus arrival time still takes at least 2 clicks: one to open the app and another to open the bus stop. I was wondering whether I could display my bus arrival time directly on my desktop and use my current location to determine which favourite bus stop I want information from, so I save 1 click. I searched the Play Store for something similar but couldn't find anything, so I thought, why not build one?
+
+Testers wanted: [r/TestersCommunity post](https://www.reddit.com/r/TestersCommunity/comments/1xo7383/android_closed_test_sg_bus_widget_onetap_live/)
+
 | Doc | What's in it |
 |---|---|
 | [README.md](README.md) | This page: what it is, how to build, test and release |

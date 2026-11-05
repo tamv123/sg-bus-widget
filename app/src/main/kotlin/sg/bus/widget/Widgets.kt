@@ -46,13 +46,16 @@ object Widgets {
     )
     // the launcher picks the largest of these that fits; every size is the same layout with less hidden
     // 76dp: a 1-row widget on Samsung is ~93dp tall, room for 2 buses (header ~18 + 2 × ~22 + padding 14)
-    private val SIZES = listOf(SizeF(110f, 40f), SizeF(110f, TWO_ROW_DP), SizeF(110f, 100f), SizeF(180f, 40f), SizeF(180f, TWO_ROW_DP),
-        SizeF(180f, 100f), SizeF(250f, 40f), SizeF(250f, TWO_ROW_DP), SizeF(250f, 100f), SizeF(250f, 150f), SizeF(250f, 200f), SizeF(250f, 260f))
+    // 90dp: Samsung's ~93dp 1-row widget also fits the status line ("Tap for live times") under the 2 buses
+    private val SIZES = listOf(110f, 180f, 250f).flatMap { w ->
+        listOf(40f, TWO_ROW_DP, STATUS_DP, 100f).map { SizeF(w, it) }
+    } + listOf(SizeF(250f, 150f), SizeF(250f, 200f), SizeF(250f, 260f))
     private val HHMM = DateTimeFormatter.ofPattern("HH:mm").withZone(SGT)
 
     /** Second-nearest stop only fits from about 4×3 up (portrait = minWidth × maxHeight, per sg-pm25-widget). */
     const val SECOND_STOP_MIN_DP = 200
     private const val TWO_ROW_DP = 76f
+    private const val STATUS_DP = 90f
 
     fun ids(ctx: Context): List<Int> {
         val mgr = AppWidgetManager.getInstance(ctx)
@@ -90,13 +93,18 @@ object Widgets {
 
     private fun build(ctx: Context, st: WidgetState, pinned: Boolean, hasRegs: Boolean, w: Float, h: Float, now: Instant): RemoteViews {
         val v = RemoteViews(ctx.packageName, R.layout.widget)
+        val look = Store.look(ctx)
+        val tc = look.text
+        v.setInt(R.id.bg, "setColorFilter", 0xFF000000.toInt() or look.rgb)
+        v.setInt(R.id.bg, "setImageAlpha", look.alpha)
+        v.setTextColor(R.id.stop, tc.main)
+        v.setTextColor(R.id.stop2, tc.secondary)
         val live = st.sessionEndMs > now.toEpochMilli()
-        val compact = h < 90
+        val compact = h < STATUS_DP   // no status line; a ● in the header shows "live" instead
         val etaCols = if (w < 180) 2 else 3
         val first = st.views.firstOrNull()
         val second = st.views.getOrNull(1)?.takeIf { h >= SECOND_STOP_MIN_DP }
-        // compact (no status line): 1 bus on a short widget, 2 once there's TWO_ROW_DP of height
-        val rows = if (compact) (if (h >= TWO_ROW_DP) 2 else 1) else ((h - 50 - (if (second != null) 44 else 0)) / 22).toInt().coerceIn(1, ROWS.size)
+        val rows = if (h < TWO_ROW_DP) 1 else if (h < 100) 2 else ((h - 50 - (if (second != null) 44 else 0)) / 22).toInt().coerceIn(1, ROWS.size)
 
         v.setTextViewText(R.id.stop, when {
             first != null -> Directory.name(ctx, first.stop)
@@ -109,7 +117,7 @@ object Widgets {
             first?.distanceM?.let(::distanceLabel),
         ).joinToString(" ")
         v.setTextViewText(R.id.dist, dist)
-        v.setTextColor(R.id.dist, if (compact && live) LIVE else GREY)
+        v.setTextColor(R.id.dist, if (compact && live) tc.live else tc.grey)
 
         val services = first?.services.orEmpty()
         ROWS.forEachIndexed { i, row ->
@@ -117,7 +125,7 @@ object Widgets {
             if (no == null || i >= rows) { v.setViewVisibility(row, View.GONE); return@forEachIndexed }
             v.setViewVisibility(row, View.VISIBLE)
             v.setTextViewText(NOS[i], no)
-            v.setTextColor(NOS[i], if (live) BUS_NO else GREY)
+            v.setTextColor(NOS[i], if (live) tc.busNo else tc.grey)
             val buses = upcoming(first!!.buses[no].orEmpty().map { it.bus() }, now)
             ETAS[i].forEachIndexed { c, cell ->
                 if (c >= etaCols) { v.setViewVisibility(cell, View.GONE); return@forEachIndexed }
@@ -131,7 +139,7 @@ object Widgets {
                     c == 0 -> "–"
                     else -> ""
                 })
-                v.setTextColor(cell, if (!live) GREY else when (bus?.load) { Load.SDA -> AMBER; Load.LSD -> RED; else -> TEXT })
+                v.setTextColor(cell, if (!live) tc.grey else when (bus?.load) { Load.SDA -> tc.amber; Load.LSD -> tc.red; else -> tc.main })
             }
         }
 
@@ -143,7 +151,7 @@ object Widgets {
                 "$no " + (upcoming(second.buses[no].orEmpty().map { it.bus() }, now).firstOrNull()
                     ?.let { if (live) etaLabel(it, now) else HHMM.format(it.at) } ?: "–")
             })
-            v.setTextColor(R.id.line2, if (live) TEXT else GREY)
+            v.setTextColor(R.id.line2, if (live) tc.main else tc.grey)
         } else {
             v.setViewVisibility(R.id.stop2, View.GONE)
             v.setViewVisibility(R.id.line2, View.GONE)
@@ -159,16 +167,9 @@ object Widgets {
             st.fetchedAtMs > 0 -> "Tap for live times · last ${HHMM.format(Instant.ofEpochMilli(st.fetchedAtMs))}"
             else -> "Tap for live bus times"
         })
-        v.setTextColor(R.id.status, when { problem != null && live -> RED; live -> LIVE; else -> GREY })
+        v.setTextColor(R.id.status, when { problem != null && live -> tc.red; live -> tc.live; else -> tc.grey })
         return v
     }
 
     private fun StopView.fetched(st: WidgetState) = st.fetchedAtMs > 0 && error == null
-
-    private const val TEXT = 0xFF212121.toInt()
-    private const val GREY = 0xFF9E9E9E.toInt()
-    private const val BUS_NO = 0xFF1B5E20.toInt()
-    private const val LIVE = 0xFF2E7D32.toInt()
-    private const val AMBER = 0xFFE65100.toInt()
-    private const val RED = 0xFFC62828.toInt()
 }

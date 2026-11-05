@@ -1,1 +1,1 @@
-Anonymous usage counts (taps, app opens, widgets) help improve SG Bus. They never include personal information, location, bus stops or routes. Switch off any time in ☰ › Setup.
+Pick your widget's background colour and transparency in ☰ › Setup. The 2×1 widget now shows the "Tap for live times" hint under its two buses. Anonymous usage counts (taps, app opens, widgets) help improve SG Bus. They never include personal information, location, bus stops or routes. Switch off any time in ☰ › Setup.
