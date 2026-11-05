@@ -250,3 +250,13 @@ all of them and fetches each stop once per tick.
 - **2×1 widget shows 2 buses**: new 76dp size bucket (Samsung 1-row ≈ 93dp tall used to fall to the 40dp one-bus layout).
 - Built and unit-tested; **not run on the emulator** (WSL lost /dev/kvm permission). First look is on Victor's phone.
 
+
+## 11. v0.5 widget look + 2×1 hint (2026-11-05, Victor)
+
+- 2×1 shows the status line ("Tap for live times · last 08:12" / "● Live · 14 min left") under its 2 buses: new 90dp
+  size bucket (Samsung 1-row ≈ 93dp). Below 90dp the old compact layout (● in the header) remains.
+- ☰ › Setup › Widget look: 9 swatches (White default, Mist, Sand, Mint, Sky, Green, Navy, Charcoal, Black) and a
+  transparency slider in 5 % steps, with a live preview over a wallpaper-like gradient. Applies to every widget.
+  Background is an ImageView tinted via setColorFilter + setImageAlpha (keeps the rounded corners); text switches to a
+  light palette on dark colours (WCAG luminance < 0.5). Core: Look.kt + LookTest (4).
+- Not emulator-tested (no /dev/kvm); phone check needed, especially that the 2×1 status line isn't clipped.
