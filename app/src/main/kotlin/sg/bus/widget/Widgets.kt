@@ -25,9 +25,15 @@ import sg.bus.core.secondStopDp
 import sg.bus.core.upcoming
 
 open class BusWidgetProvider : AppWidgetProvider() {
-    override fun onUpdate(ctx: Context, mgr: AppWidgetManager, ids: IntArray) = ids.forEach { Widgets.render(ctx, it) }
+    override fun onUpdate(ctx: Context, mgr: AppWidgetManager, ids: IntArray) {
+        ids.forEach { Widgets.render(ctx, it) }
+        Usage.syncWidgets(ctx)
+    }
     override fun onAppWidgetOptionsChanged(ctx: Context, mgr: AppWidgetManager, id: Int, options: Bundle) = Widgets.render(ctx, id)
-    override fun onDeleted(ctx: Context, ids: IntArray) = ids.forEach { Store.forget(ctx, it) }
+    override fun onDeleted(ctx: Context, ids: IntArray) {
+        ids.forEach { Store.forget(ctx, it) }
+        Usage.syncWidgets(ctx)
+    }
 }
 
 class BusWidgetLarge : BusWidgetProvider()

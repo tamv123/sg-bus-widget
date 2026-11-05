@@ -48,10 +48,13 @@ class MainActivity : Activity() {
     private lateinit var drawer: LinearLayout
     private lateinit var titleView: TextView
     private val closeOnBack = OnBackInvokedCallback { closeDrawer() }
+    /** a rotation recreates the activity; that isn't the user opening the app again */
+    private var skipOpenCount = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         tab = savedInstanceState?.getString("tab")?.let { runCatching { Tab.valueOf(it) }.getOrNull() } ?: Tab.MAIN
+        skipOpenCount = savedInstanceState?.getBoolean("configChange") == true
         col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(4), dp(20), dp(32)) }
         scroll = ScrollView(this).apply { addView(col) }
         scrim = View(this).apply {
@@ -86,6 +89,13 @@ class MainActivity : Activity() {
     override fun onSaveInstanceState(out: Bundle) {
         super.onSaveInstanceState(out)
         out.putString("tab", tab.name)
+        out.putBoolean("configChange", isChangingConfigurations)
+    }
+
+    // onStart, not onResume: Android's permission prompt pauses/resumes the app without it being reopened
+    override fun onStart() {
+        super.onStart()
+        if (skipOpenCount) skipOpenCount = false else Usage.appOpen(this)
     }
 
     override fun onResume() {
@@ -224,6 +234,20 @@ class MainActivity : Activity() {
                 startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
             }
         }
+        drawUsageSwitch()
+    }
+
+    private fun drawUsageSwitch() {
+        col.heading("Anonymous usage counts")
+        col.addView(android.widget.Switch(this).apply {
+            text = "Share anonymous usage counts"; textSize = 16f; isChecked = Usage.enabled(this@MainActivity)
+            setPadding(0, dp(4), 0, dp(8))
+            setOnCheckedChangeListener { _, on ->
+                Usage.setEnabled(this@MainActivity, on)
+                if (on) { Usage.syncWidgets(this@MainActivity); Usage.flush(this@MainActivity) }
+            }
+        })
+        col.label(USAGE_EXPLAINER, 14f)
     }
 
     /** Widget look: colour swatches + transparency, with a live preview over a wallpaper-like gradient. */
@@ -317,6 +341,8 @@ class MainActivity : Activity() {
         val ids = Widgets.ids(this)
         col.label("Widgets placed: ${ids.size} · live service: ${Store.diag(this, "fgs") ?: "not run yet"}", 13f)
         col.label("Last fix: ${Store.diag(this, "loc") ?: "–"}", 13f)
+        col.label("Usage counts: ${if (Usage.enabled(this)) Store.diag(this, "usage") ?: "on, nothing sent yet" else "off"}", 13f)
+        if (Usage.enabled(this)) col.label("Install ID: ${Usage.install(this)}", 12f).setTextIsSelectable(true)
         val dirAt = Store.diag(this, "dir.ok")?.toLongOrNull()?.let { DateTimeFormatter.ofPattern("d MMM yyyy").withZone(SGT).format(Instant.ofEpochMilli(it)) }
         val dirErr = Store.diag(this, "dir.err")?.takeIf { it.isNotEmpty() }?.let { " · last update failed: $it" } ?: ""
         col.label("Stops list: ${Directory.stops(this).size} stops, ${dirAt?.let { "updated $it" } ?: "built in"}$dirErr", 13f)
@@ -329,7 +355,28 @@ class MainActivity : Activity() {
         col.label("Arrival data: arrivelah (busrouter.sg), from LTA DataMall. Not affiliated with LTA.", 12f)
     }
 
-    private companion object { const val DRAWER_DP = 280 }
+    private companion object {
+        const val DRAWER_DP = 280
+        val USAGE_EXPLAINER = """
+            |Helps one developer see whether SG Bus is actually useful, and what to improve. The app sends only these numbers, per day:
+            |
+            |• how many times you tapped a widget
+            |• how many times you opened the app
+            |• how many widgets are on your home screen, and how many you added or removed
+            |
+            |…with the app version and a random ID the app made up. That ID isn't linked to you, your phone or your Google account, and it's gone if you uninstall.
+            |
+            |Never included, and never leaving your phone with these counts:
+            |• no personal information
+            |• no location
+            |• no bus stops
+            |• no bus routes or bus settings
+            |
+            |Counts are deleted automatically after 13 months. Turning this off stops counting straight away.
+            |
+            |(Separately, to show arrival times the app has always asked busrouter.sg for a stop's buses, as described in the privacy policy.)
+        """.trimMargin()
+    }
 
     private fun save(r: Registration) {
         Store.saveRegistrations(this, upsert(Store.registrations(this), r))

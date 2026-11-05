@@ -250,6 +250,18 @@ all of them and fetches each stop once per tick.
 - **2×1 widget shows 2 buses**: new 76dp size bucket (Samsung 1-row ≈ 93dp tall used to fall to the 40dp one-bus layout).
 - Built and unit-tested; **not run on the emulator** (WSL lost /dev/kvm permission). First look is on Victor's phone.
 
+## 10. v0.4 anonymous usage counts (2026-11-04, Victor: "go with your recommendations, build now")
+
+- Per Singapore day, per random install id: taps, app opens, widgets added/removed, small/large widgets live, app
+  version, debug flag. Running totals are re-sent (same `<install>_<day>` doc) on every tap and app open, so yesterday
+  is complete by the 7am report. No background jobs. Debug builds are tagged and left out of the report.
+- Counting rules: app opens counted in onStart and not on rotation (permission prompts only pause); widget adds and
+  removals by diffing known widget ids (the first sync after install/update is a baseline, not "added").
+- On by default, switch + plain-language explainer in Setup (no personal info, location, stops or routes).
+- Backend: Firestore in ria-chatbot-52232f7f (asia-southeast1), write-only rules, 400-day TTL. Rules live-tested:
+  valid writes 200; extra fields, oversize values, someone else's doc id, negative counts, reads, lists and deletes 403.
+- Not emulator-tested (no /dev/kvm access); core logic unit-tested (UsageTest, 8 cases).
+
 
 ## 11. v0.5 widget look + 2×1 hint (2026-11-05, Victor)
 
