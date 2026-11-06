@@ -1,1 +1,1 @@
-New: a short setup guide on first launch walks you through location, notifications, adding your stops and placing a widget. Replay it any time from ☰ › About.
+Tighter line spacing on the widget, so you can use a bigger text size and still fit everything.
