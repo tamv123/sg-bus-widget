@@ -117,9 +117,12 @@ class TourOverlay(ctx: Context, private val steps: List<TourStep>, private val o
             bubble.layoutParams = (bubble.layoutParams as LayoutParams).apply { gravity = Gravity.TOP; topMargin = top.toInt() }
             arrow.up = below
             arrow.visibility = View.VISIBLE
+            // overlay width read OUTSIDE the apply: inside it, `width` is the arrow LayoutParams' 24dp (crashed on "Let's go")
+            val overlayW = width
             arrow.layoutParams = (arrow.layoutParams as LayoutParams).apply {
                 gravity = Gravity.TOP or Gravity.START
-                leftMargin = (hole.centerX() - context.dp(12)).toInt().coerceIn(context.dp(28), width - context.dp(52))
+                leftMargin = (hole.centerX() - context.dp(12)).toInt()
+                    .coerceIn(context.dp(28), maxOf(context.dp(28), overlayW - context.dp(52)))
                 topMargin = (if (below) top - context.dp(11) else top + bubble.measuredHeight - context.dp(1)).toInt()
             }
         }
