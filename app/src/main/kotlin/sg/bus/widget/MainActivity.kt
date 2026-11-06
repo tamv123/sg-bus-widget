@@ -47,6 +47,10 @@ class MainActivity : Activity() {
     private lateinit var scrim: View
     private lateinit var drawer: LinearLayout
     private lateinit var titleView: TextView
+    private lateinit var frame: FrameLayout
+    private lateinit var menuButton: View
+    private var tour: TourOverlay? = null
+    private val endTourOnBack = OnBackInvokedCallback { endTour(finished = false) }
     private val closeOnBack = OnBackInvokedCallback { closeDrawer() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,7 +70,8 @@ class MainActivity : Activity() {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             minimumHeight = dp(56); setPadding(dp(4), 0, dp(16), 0)
-            addView(iconButton(R.drawable.ic_menu, "Menu") { if (drawer.visibility == View.VISIBLE) closeDrawer() else openDrawer() })
+            menuButton = iconButton(R.drawable.ic_menu, "Menu") { if (drawer.visibility == View.VISIBLE) closeDrawer() else openDrawer() }
+            addView(menuButton)
             addView(titleView, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(12) })
         }
         val body = FrameLayout(this).apply {
@@ -75,17 +80,87 @@ class MainActivity : Activity() {
             addView(drawer, FrameLayout.LayoutParams(dp(DRAWER_DP), FrameLayout.LayoutParams.MATCH_PARENT))
         }
         actionBar?.hide()   // our own bar: the ☰ bubble sits top-left whatever the theme does
-        setContentView(LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; fitsSystemWindows = true
+        // outer frame so the setup guide can lay over the bar and the page together
+        frame = FrameLayout(this).apply {
+            fitsSystemWindows = true
             setBackgroundColor(themeColor(android.R.attr.colorBackground))
-            addView(bar)
-            addView(body, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
-        })
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(bar)
+                addView(body, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+            })
+        }
+        setContentView(frame)
+        tourResumeAt = savedInstanceState?.getInt("tourStep", -1) ?: -1
+    }
+
+    private var tourResumeAt = -1
+
+    // ---- first-run setup guide ----
+
+    private fun tag(t: String): View? = frame.findViewWithTag(t)
+
+    private fun tourSteps() = listOf(
+        TourStep("Welcome to SG Bus 👋", {
+            "One tap on a home-screen widget shows live arrivals for the stops you use. This quick guide sets it up: " +
+                "location, notifications, your stops, then a widget."
+        }, { null }, next = "Let's go", prepare = { go(Tab.MAIN) }),
+        TourStep("Allow location", {
+            if (Locator.hasPermission(this)) "✅ Location is allowed. Your widgets will pick whichever of your stops is nearest."
+            else "Tap Allow location. A widget uses it to pick whichever of your stops is nearest. Your location stays on your phone."
+        }, { tag("tour:location.btn") ?: tag("tour:location") }, prepare = { go(Tab.SETUP) }),
+        TourStep("Allow notifications", {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
+                "✅ Notifications are on. While a widget is live, its times also show in your notification shade."
+            else "Tap Allow notifications to see live times in your notification shade too. Optional: widgets update either way."
+        }, { tag("tour:notif.btn") ?: tag("tour:notif") }, prepare = { go(Tab.SETUP) }),
+        TourStep("Add the stops you use", {
+            val n = Store.registrations(this).size
+            if (n > 0) "✅ You have $n stop${if (n == 1) "" else "s"}. Add more any time, like home and work. Drag ⠿ to change the order."
+            else "Tap Add stop near me, pick your stop, then tick the buses you take. Do this for each stop you use often, " +
+                "like home and work. Not nearby? Use Add stop by code or name, just below."
+        }, { tag("tour:add") }, prepare = { go(Tab.MAIN) }),
+        TourStep("Put a widget on your home screen", {
+            "Tap Add large widget or Add small widget. Then tap the widget whenever you're heading out: it shows live times for " +
+                "your nearest stop for 15 minutes."
+        }, { tag("tour:widget") }, prepare = { go(Tab.MAIN) }),
+        TourStep("You're all set 🎉", {
+            "Setup, widget colours and text size, and About are in this menu. You can replay this guide from About."
+        }, { menuButton }, next = "Done"),
+    )
+
+    private fun startTour(at: Int = 0) {
+        if (tour != null) return
+        if (drawer.visibility == View.VISIBLE) closeDrawer()
+        val t = TourOverlay(this, tourSteps()) { finished -> endTour(finished) }
+        tour = t
+        frame.addView(t, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_OVERLAY, endTourOnBack)
+        t.show(at)
+    }
+
+    private fun endTour(finished: Boolean) {
+        val t = tour ?: return
+        tour = null
+        onBackInvokedDispatcher.unregisterOnBackInvokedCallback(endTourOnBack)
+        Store.setDiag(this, "tour.done", if (finished) "finished" else "skipped at ${t.index}")
+        t.animate().alpha(0f).setDuration(150).withEndAction { frame.removeView(t) }.start()
+        if (finished) go(Tab.MAIN)
+    }
+
+    /** Fresh installs get the guide once. People who already have stops (updating from an older version) don't. */
+    private fun maybeStartTour() {
+        if (tour != null) return
+        if (tourResumeAt >= 0) { startTour(tourResumeAt); tourResumeAt = -1; return }
+        if (Store.diag(this, "tour.done") != null) return
+        if (Store.registrations(this).isNotEmpty()) { Store.setDiag(this, "tour.done", "had stops"); return }
+        startTour()
     }
 
     override fun onSaveInstanceState(out: Bundle) {
         super.onSaveInstanceState(out)
         out.putString("tab", tab.name)
+        tour?.let { out.putInt("tourStep", it.index) }
     }
 
     override fun onResume() {
@@ -94,6 +169,7 @@ class MainActivity : Activity() {
         Widgets.renderAll(this)
         Directory.refreshIfDue(this)
         redraw()
+        maybeStartTour()
     }
 
     private fun openDrawer() {
@@ -146,6 +222,7 @@ class MainActivity : Activity() {
             Tab.ABOUT -> drawAbout()
         }
         if (drawer.visibility == View.VISIBLE) drawMenu()
+        tour?.refresh()   // the guide's target may have been rebuilt (e.g. "Allow location" became "✅ allowed")
     }
 
     private fun drawMain() {
@@ -162,7 +239,7 @@ class MainActivity : Activity() {
             Store.saveRegistrations(this, order)
             Widgets.renderAll(this)
         })
-        col.button("➕ Add stop near me") { addNearMe() }
+        col.button("➕ Add stop near me") { addNearMe() }.tag = "tour:add"
         col.button("🔎 Add stop by code or name") { addBySearch() }
 
         col.heading("Widgets")
@@ -170,8 +247,9 @@ class MainActivity : Activity() {
         val mgr = getSystemService(AppWidgetManager::class.java)
         if (mgr.isRequestPinAppWidgetSupported) {
             col.button("Add large widget (4×2)") { mgr.requestPinAppWidget(ComponentName(this, BusWidgetLarge::class.java), null, null) }
+                .tag = "tour:widget"
             col.button("Add small widget (2×1)") { mgr.requestPinAppWidget(ComponentName(this, BusWidgetSmall::class.java), null, null) }
-        } else col.label("Long-press your home screen › Widgets › SG Bus.", 14f)
+        } else col.label("Long-press your home screen › Widgets › SG Bus.", 14f).tag = "tour:widget"
     }
 
     /** One My-stops row: ⠿ handle · stop + its buses + [Buses] [Bus order] · 🗑. */
@@ -213,10 +291,13 @@ class MainActivity : Activity() {
         col.heading("Permissions")
         val fine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         col.label(if (fine) "✅ Location allowed (picks your nearest stop)" else "❌ Location not allowed — widgets can't tell which stop is nearest")
-        if (!fine) col.button("Allow location") { askLocation() }
+            .tag = "tour:location"
+        if (!fine) col.button("Allow location") { askLocation() }.tag = "tour:location.btn"
         val notif = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         col.label(if (notif) "✅ Notifications allowed (live times in the shade)" else "⚠ Notifications off — live times still update the widget")
+            .tag = "tour:notif"
         if (!notif) col.button("Allow notifications") { requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2) }
+            .tag = "tour:notif.btn"
         val bg = checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
         if (fine && !bg && Store.diag(this, "fgs")?.startsWith("specialUse") == true) {
             col.label("⚠ Your phone didn't give the widget location from a tap. Set location to \"Allow all the time\" so it can pick the nearest stop.")
@@ -326,6 +407,7 @@ class MainActivity : Activity() {
             val mode = Store.config(this, id).pinned?.let { "📌 ${it.stop}" } ?: "nearest"
             col.label("#$id $mode · last fetch $at${st.views.firstOrNull()?.error?.let { " · ⚠ $it" } ?: ""}", 13f)
         }
+        col.button("Show the setup guide again") { startTour() }
         col.label("Arrival data: arrivelah (busrouter.sg), from LTA DataMall. Not affiliated with LTA.", 12f)
         col.button("Source code on GitHub") { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SOURCE_URL))) }
     }

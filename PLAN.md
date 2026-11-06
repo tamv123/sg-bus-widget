@@ -270,3 +270,14 @@ all of them and fetches each stop once per tick.
 - Setup › Widget look: Text size slider 70–130 % in 5 % steps (scales every widget text + the bus-number column);
   preview follows it. Default look is now Sky, 30 % transparent (fresh installs only).
 - LookTest 9 cases incl. S25+ 93dp: normal text → 2 buses + status; 115 % text → 2 buses, no status; 85 % slider → back.
+
+## 13. v0.7.0 first-run setup guide (2026-11-05, Victor)
+
+- Coach marks (Tour.kt, platform views): dimmed screen with a highlighted cut-out around the real button, a speech
+  bubble with an arrow, "Skip guide" + "Next". Taps inside the cut-out reach the real button, so each step is done for
+  real; the bubble text flips to ✅ once done (permission granted, stop added).
+- Steps: Welcome → Allow location (Setup) → Allow notifications (Setup) → Add your stops (Main, "Add stop near me")
+  → Put a widget on the home screen (Main) → ☰ menu ("replay from About"). Back = skip.
+- Shown once on a fresh install (Store diag `tour.done`); updaters who already have stops don't get it.
+  ☰ › About › "Show the setup guide again" replays it. Survives rotation (step saved in instance state).
+- Not emulator-tested (no /dev/kvm): first look is on Victor's phone via About › replay.
