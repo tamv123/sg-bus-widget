@@ -57,8 +57,12 @@ fun luminance(rgb: Int): Double {
 /** How many bus rows fit, and whether the status line ("Tap for live times") fits under them. */
 data class Fit(val rows: Int, val status: Boolean)
 
-/** Height in dp of one line of [sp] text (Roboto with font padding is ~1.33 × its size). */
-fun lineDp(sp: Float, fontScale: Float) = sp * fontScale * 1.33f
+/** Height in dp of one line of [sp] text: Roboto is ~1.33 × its size with Android's font padding, ~1.17 × without. */
+fun lineDp(sp: Float, fontScale: Float, fontPadding: Boolean = true) = sp * fontScale * (if (fontPadding) 1.33f else 1.17f)
+
+/** widget.xml: the stop name and bus rows have includeFontPadding=false and a 3dp gap per row (~32 % tighter than
+ *  font padding + 2dp); the status line keeps its padding so ● / ⚠ aren't clipped. */
+const val ROW_GAP_DP = 3f
 
 /**
  * Lay out for the widget's real height. [fontScale] = Android's font-size setting × the user's text size.
@@ -67,8 +71,8 @@ fun lineDp(sp: Float, fontScale: Float) = sp * fontScale * 1.33f
  */
 fun fitRows(heightDp: Float, fontScale: Float, maxRows: Int, extraDp: Float = 0f): Fit {
     val padding = 14f                                   // widget.xml: 8dp top + 6dp bottom
-    val avail = heightDp - padding - lineDp(13f, fontScale) - extraDp
-    val row = lineDp(15f, fontScale) + 2f              // 2dp paddingTop per row
+    val avail = heightDp - padding - lineDp(13f, fontScale, fontPadding = false) - extraDp
+    val row = lineDp(15f, fontScale, fontPadding = false) + ROW_GAP_DP
     val status = lineDp(11f, fontScale)
     val withStatus = ((avail - status) / row).toInt()
     val without = (avail / row).toInt()

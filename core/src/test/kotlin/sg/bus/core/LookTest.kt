@@ -30,6 +30,12 @@ class LookTest {
         assertEquals(Fit(2, true), fitRows(93f, 1.15f * 0.85f, maxRows = 6))   // the text slider wins it back
     }
 
+    @Test fun tighterLinesLetTheTwoByOneKeepItsStatusAtBiggerText() {
+        // with font padding + 2dp the 93dp 2×1 lost its status line above ~104 % text; now it holds to ~112 %
+        assertEquals(Fit(2, true), fitRows(93f, 1.10f, maxRows = 6))
+        assertEquals(Fit(2, false), fitRows(93f, 1.20f, maxRows = 6))
+    }
+
     @Test fun tinyWidgetsShowOneRow() {
         assertEquals(Fit(1, false), fitRows(40f, 1f, maxRows = 6))
         assertEquals(Fit(1, true), fitRows(70f, 1f, maxRows = 6))
