@@ -39,7 +39,12 @@ android {
         }
     }
     buildFeatures { buildConfig = true }
-    testOptions { unitTests.isIncludeAndroidResources = true }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        // `./gradlew :app:testDebugUnitTest --tests '*StoreScreenshots*' -Pshots=<dir>` renders Play/README screenshots
+        val shots = providers.gradleProperty("shots").orNull ?: ""
+        unitTests.all { it.systemProperty("sgbus.shots", shots) }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
