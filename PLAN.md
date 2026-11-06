@@ -293,3 +293,9 @@ all of them and fetches each stop once per tick.
 - Shown once on a fresh install (Store diag `tour.done`); updaters who already have stops don't get it.
   ☰ › About › "Show the setup guide again" replays it. Survives rotation (step saved in instance state).
 - Not emulator-tested (no /dev/kvm): first look is on Victor's phone via About › replay.
+
+## 14. v0.7.2 tighter widget lines (2026-11-06, Victor: "reduce line padding 30% so I can use a bigger font")
+
+- Stop name + bus rows: includeFontPadding=false and a 3dp row gap (was font padding ≈2.4dp + 2dp) → ~32 % less space
+  between lines. Status line keeps font padding (● / ⚠ would clip). Setup preview mirrors it.
+- fitRows uses 1.17 × sp for those lines: the 93dp 2×1 keeps its status line up to ~112 % text (was ~104 %).

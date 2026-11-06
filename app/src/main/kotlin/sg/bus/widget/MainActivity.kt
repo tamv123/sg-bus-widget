@@ -341,13 +341,14 @@ class MainActivity : Activity() {
             setPadding(dp(16), dp(14), dp(16), dp(14))
         }
         val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(8), dp(12), dp(8)) }
-        val stop = TextView(this).apply { text = "Avenue Villa"; textSize = 13f; setTypeface(typeface, Typeface.BOLD) }
-        val no = TextView(this).apply { text = "970"; textSize = 15f; setTypeface(typeface, Typeface.BOLD) }
-        val eta = TextView(this).apply { text = "3 min    14    27"; textSize = 15f }
+        // same tight lines as the widget (widget.xml: no font padding on name + rows, 3dp row gap)
+        val stop = TextView(this).apply { text = "Avenue Villa"; textSize = 13f; setTypeface(typeface, Typeface.BOLD); includeFontPadding = false }
+        val no = TextView(this).apply { text = "970"; textSize = 15f; setTypeface(typeface, Typeface.BOLD); includeFontPadding = false }
+        val eta = TextView(this).apply { text = "3 min    14    27"; textSize = 15f; includeFontPadding = false }
         val status = TextView(this).apply { text = "Tap for live times · last 08:12"; textSize = 11f }
         card.addView(stop)
         card.addView(LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+            orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(3), 0, 0)
             addView(no, LinearLayout.LayoutParams(dp(52), LinearLayout.LayoutParams.WRAP_CONTENT))
             addView(eta)
         })

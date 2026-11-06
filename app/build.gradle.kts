@@ -21,7 +21,7 @@ android {
         applicationId = "sg.bus.widget"
         minSdk = 34
         targetSdk = 36
-        versionCode = 14
+        versionCode = 17
         versionName = "0.8.0"
     }
     signingConfigs {
