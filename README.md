@@ -4,8 +4,13 @@ Android home-screen widget. **One tap** shows live Singapore bus arrival times f
 registered bus stop **nearest to you**, for only the services you registered there.
 It then keeps refreshing every 20 s for 15 min, and stops by itself.
 
-**Status: v0.2**, the first version. Verified on the emulator; Victor tested it on his Samsung S25+ (2026-11-03) and accepted it.
-It's not on Google Play yet (see [What's next](#whats-next)).
+**Status: v0.7.5** on Google Play internal testing, v0.7.4 on closed testing (2026-11-06). Tested on a Samsung S25+.
+
+| Live on the home screen | First-run setup guide | My stops | Widget look |
+|---|---|---|---|
+| <img src="play/screenshot-1-home-widgets.png" width="200" alt="Three SG Bus widgets (2×1, 2×2 and 4×2) showing live arrivals"> | <img src="play/screenshot-2-setup-guide.png" width="200" alt="Setup guide bubble pointing at Add stop near me"> | <img src="play/screenshot-3-my-stops.png" width="200" alt="My stops list with drag handles and trash icons"> | <img src="play/screenshot-4-widget-look.png" width="200" alt="Widget look: colour swatches, transparency and text size sliders with a preview"> |
+
+<sub>Screenshots 2–4 are rendered by `StoreScreenshots` (Robolectric) with public example stops; see [Screenshots](#screenshots).</sub>
 
 ## Why I built it
 
@@ -87,11 +92,23 @@ scripts/send_apk.sh ["caption"]            # debug APK to WhatsApp via Victor's 
 Bump `versionName` in `app/build.gradle.kts` for each release. `versionCode` is resolved
 from Play automatically, so it never collides.
 
+## Screenshots
+
+`play/screenshot-1-home-widgets.png` is a real S25+ home screen, cropped to 9:16. The app screens are rendered on the
+JVM, no emulator needed:
+
+```bash
+./gradlew :app:testDebugUnitTest --tests '*StoreScreenshots*' -Pshots=/tmp/shots   # 1080×1920 PNGs
+```
+
+Play wants 24-bit PNG (no alpha) or JPEG, with no side more than twice the other. Without `-Pshots`, the renderer is
+skipped in normal test runs.
+
 ## What's next
 
 - Remove `ACCESS_BACKGROUND_LOCATION` once One UI is confirmed to grant the `location` service type. It triggers
   Play's background-location review, and the app doesn't need it.
-- Create the app in Play Console, grant `play-publisher` rights, upload the first bundle by hand, then use `scripts/publish.sh`.
+- Production release (needs the closed test's 12 testers × 14 days, then Play's production review).
 - Optional: a Chronometer per-second countdown, and an LTA DataMall fail-over (PLAN.md §2).
 
 ## Data and credits
