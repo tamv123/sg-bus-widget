@@ -287,3 +287,11 @@ all of them and fetches each stop once per tick.
 - Stop name + bus rows: includeFontPadding=false and a 3dp row gap (was font padding ≈2.4dp + 2dp) → ~32 % less space
   between lines. Status line keeps font padding (● / ⚠ would clip). Setup preview mirrors it.
 - fitRows uses 1.17 × sp for those lines: the 93dp 2×1 keeps its status line up to ~112 % text (was ~104 %).
+
+## 15. v0.7.4 setup-guide crash fix (2026-11-06, Victor's S25+)
+
+- Crash on "Let's go": in TourOverlay.place(), `width` inside `arrow.layoutParams.apply { }` resolved to the
+  LayoutParams' 24dp, so `coerceIn(28dp, width − 52dp)` got an empty range → IllegalArgumentException. Welcome has no
+  arrow, so step 1 was the first to hit it. Fix: read the overlay width outside the apply block.
+- Found by a new Robolectric test (SetupGuideTest) that taps through all 6 steps on the JVM — first app-level UI test,
+  no emulator needed. Play crash reports (Developer Reporting API, now enabled) had nothing yet.
