@@ -1,1 +1,1 @@
-Tighter line spacing on the widget, so you can use a bigger text size and still fit everything.
+Fixes a crash when tapping "Let's go" in the setup guide.

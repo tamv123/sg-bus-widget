@@ -46,3 +46,9 @@
 ## License
 
 By contributing, you agree your contributions are licensed under the repo's [MIT License](LICENSE).
+
+## UI tests without an emulator
+
+`./gradlew :app:testDebugUnitTest` runs Robolectric screen tests on the JVM (e.g. `SetupGuideTest` walks the whole
+first-run guide). Robolectric is test-only, but it pulls `androidx.test`, which is why `android.useAndroidX=true`;
+the app itself still uses no AndroidX.

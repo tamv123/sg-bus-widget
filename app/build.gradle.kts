@@ -21,8 +21,8 @@ android {
         applicationId = "sg.bus.widget"
         minSdk = 34
         targetSdk = 36
-        versionCode = 16
-        versionName = "0.7.3"
+        versionCode = 19
+        versionName = "0.7.5"
     }
     signingConfigs {
         if (signingProps.isNotEmpty()) create("upload") {
@@ -39,6 +39,7 @@ android {
         }
     }
     buildFeatures { buildConfig = true }
+    testOptions { unitTests.isIncludeAndroidResources = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -62,4 +63,7 @@ play {
 
 dependencies {
     implementation(project(":core"))
+    // JVM UI tests (Robolectric): no emulator needed. Test-only; nothing ships in the app.
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.14.1")
 }
