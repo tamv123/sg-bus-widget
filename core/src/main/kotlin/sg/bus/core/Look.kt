@@ -54,7 +54,7 @@ fun luminance(rgb: Int): Double {
     return 0.2126 * ch(16) + 0.7152 * ch(8) + 0.0722 * ch(0)
 }
 
-/** How many bus rows fit, and whether the status line ("Tap for live times") fits under them. */
+/** How many bus rows fit, and whether the status line ("● Live · 14 min left") fits under them. */
 data class Fit(val rows: Int, val status: Boolean)
 
 /** Height in dp of one line of [sp] text: Roboto is ~1.33 × its size with Android's font padding, ~1.17 × without. */

@@ -1,1 +1,1 @@
-Fixes a crash when tapping "Let's go" in the setup guide.
+When the 15 minutes of live updates end, the widget now just says "Tap for live update" instead of showing old bus times.
