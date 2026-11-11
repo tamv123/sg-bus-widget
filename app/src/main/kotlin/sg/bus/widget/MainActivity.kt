@@ -321,7 +321,7 @@ class MainActivity : Activity() {
         val stop = TextView(this).apply { text = "Avenue Villa"; textSize = 13f; setTypeface(typeface, Typeface.BOLD); includeFontPadding = false }
         val no = TextView(this).apply { text = "970"; textSize = 15f; setTypeface(typeface, Typeface.BOLD); includeFontPadding = false }
         val eta = TextView(this).apply { text = "3 min    14    27"; textSize = 15f; includeFontPadding = false }
-        val status = TextView(this).apply { text = "Tap for live times · last 08:12"; textSize = 11f }
+        val status = TextView(this).apply { text = "● Live · 14 min left · 08:12"; textSize = 11f }
         card.addView(stop)
         card.addView(LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(3), 0, 0)
@@ -384,7 +384,7 @@ class MainActivity : Activity() {
                 override fun onStopTrackingTouch(sb: android.widget.SeekBar) = apply()
             })
         })
-        col.label("Smaller text fits more on a small widget: a 2×1 shows the \"Tap for live times\" line once it fits. " +
+        col.label("Smaller text fits more on a small widget: a 2×1 shows the status line (\"● Live · 14 min left\") once it fits. " +
             "Text turns light on dark colours. The more transparent, the more your wallpaper decides how readable it is.", 12f)
             .setTextColor(themeColor(android.R.attr.textColorSecondary))
         paint()

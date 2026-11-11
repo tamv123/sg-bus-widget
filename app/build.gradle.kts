@@ -21,8 +21,8 @@ android {
         applicationId = "sg.bus.widget"
         minSdk = 34
         targetSdk = 36
-        versionCode = 19
-        versionName = "0.7.5"
+        versionCode = 20
+        versionName = "0.7.6"
     }
     signingConfigs {
         if (signingProps.isNotEmpty()) create("upload") {

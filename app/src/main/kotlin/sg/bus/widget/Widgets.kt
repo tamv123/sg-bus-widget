@@ -49,6 +49,7 @@ object Widgets {
     private val TEXT_SP = mapOf(R.id.stop to 13f, R.id.dist to 12f, R.id.stop2 to 12f, R.id.line2 to 13f, R.id.status to 11f) +
         NOS.associateWith { 15f } + ETAS.flatten().associateWith { 15f }
     private val HHMM = DateTimeFormatter.ofPattern("HH:mm").withZone(SGT)
+    const val TAP_PROMPT = "Tap for live update"
 
     /** Second-nearest stop only fits from about 4×3 up (portrait = minWidth × maxHeight, per sg-pm25-widget). */
     const val SECOND_STOP_MIN_DP = 200
@@ -90,7 +91,7 @@ object Widgets {
         return PendingIntent.getForegroundService(ctx, id, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
-    private fun build(ctx: Context, st: WidgetState, pinned: Boolean, hasRegs: Boolean, w: Float, h: Float, now: Instant): RemoteViews {
+    internal fun build(ctx: Context, st: WidgetState, pinned: Boolean, hasRegs: Boolean, w: Float, h: Float, now: Instant): RemoteViews {
         val v = RemoteViews(ctx.packageName, R.layout.widget)
         val look = Store.look(ctx)
         val tc = look.text
@@ -106,20 +107,28 @@ object Widgets {
         val live = st.sessionEndMs > now.toEpochMilli()
         val etaCols = if (w < 180) 2 else 3
         val first = st.views.firstOrNull()
-        val second = st.views.getOrNull(1)?.takeIf { h >= SECOND_STOP_MIN_DP }
+        // Idle (no session, or the 15 min ran out): show NO bus times, distance or nearest stop. They are from the
+        // last session, so old clock times (17:0x) read as if they were live. Only what can't go stale stays: a pinned
+        // widget's own stop. The tap prompt takes their place.
+        val second = st.views.getOrNull(1)?.takeIf { live && h >= SECOND_STOP_MIN_DP }
         val fit = fitRows(h, fontScale, ROWS.size, if (second != null) secondStopDp(fontScale) else 0f)
-        val rows = fit.rows
+        val rows = if (live) fit.rows else 0
         val compact = !fit.status   // no room for the status line: a ● in the header shows "live" instead
+        // idle has no bus rows, so the prompt fits on the status line unless the widget is one bare row high
+        val idleStatus = !live && hasRegs && !(fit.rows == 1 && !fit.status)
 
         v.setTextViewText(R.id.stop, when {
-            first != null -> Directory.name(ctx, first.stop)
             !hasRegs -> "Add a stop in the SG Bus app"
-            else -> "Tap for live bus times"
+            live && first != null -> Directory.name(ctx, first.stop)
+            live -> "Finding your stop…"
+            pinned && idleStatus -> Directory.name(ctx, first!!.stop)
+            idleStatus -> "Nearest stop"
+            else -> TAP_PROMPT
         })
         val dist = listOfNotNull(
             if (compact && live) "●" else null,
             if (pinned) "📌" else null,
-            first?.distanceM?.let(::distanceLabel),
+            if (live) first?.distanceM?.let(::distanceLabel) else null,
         ).joinToString(" ")
         v.setTextViewText(R.id.dist, dist)
         v.setTextColor(R.id.dist, if (compact && live) tc.live else tc.grey)
@@ -130,21 +139,19 @@ object Widgets {
             if (no == null || i >= rows) { v.setViewVisibility(row, View.GONE); return@forEachIndexed }
             v.setViewVisibility(row, View.VISIBLE)
             v.setTextViewText(NOS[i], no)
-            v.setTextColor(NOS[i], if (live) tc.busNo else tc.grey)
+            v.setTextColor(NOS[i], tc.busNo)
             val buses = upcoming(first!!.buses[no].orEmpty().map { it.bus() }, now)
             ETAS[i].forEachIndexed { c, cell ->
                 if (c >= etaCols) { v.setViewVisibility(cell, View.GONE); return@forEachIndexed }
                 v.setViewVisibility(cell, View.VISIBLE)
                 val bus = buses.getOrNull(c)
                 v.setTextViewText(cell, when {
-                    // idle: clock times, since minutes frozen at the last fetch would be wrong by the time you look
-                    bus != null && !live -> HHMM.format(bus.at)
                     bus != null -> etaLabel(bus, now).let { if (c == 0 && etaCols == 3 && it.last().isDigit()) "$it min" else it }
                     c == 0 && live && first.fetched(st) -> "no live info"
                     c == 0 -> "–"
                     else -> ""
                 })
-                v.setTextColor(cell, if (!live) tc.grey else when (bus?.load) { Load.SDA -> tc.amber; Load.LSD -> tc.red; else -> tc.main })
+                v.setTextColor(cell, when (bus?.load) { Load.SDA -> tc.amber; Load.LSD -> tc.red; else -> tc.main })
             }
         }
 
@@ -154,9 +161,9 @@ object Widgets {
             v.setTextViewText(R.id.stop2, Directory.name(ctx, second.stop) + (second.distanceM?.let { " · ${distanceLabel(it)}" } ?: ""))
             v.setTextViewText(R.id.line2, second.services.joinToString("   ") { no ->
                 "$no " + (upcoming(second.buses[no].orEmpty().map { it.bus() }, now).firstOrNull()
-                    ?.let { if (live) etaLabel(it, now) else HHMM.format(it.at) } ?: "–")
+                    ?.let { etaLabel(it, now) } ?: "–")
             })
-            v.setTextColor(R.id.line2, if (live) tc.main else tc.grey)
+            v.setTextColor(R.id.line2, tc.main)
         } else {
             v.setViewVisibility(R.id.stop2, View.GONE)
             v.setViewVisibility(R.id.line2, View.GONE)
@@ -164,13 +171,12 @@ object Widgets {
 
         // fail loudly: an error or a note (no location, …) always wins the status line
         val problem = first?.error ?: st.note
-        v.setViewVisibility(R.id.status, if (compact) View.GONE else View.VISIBLE)
+        v.setViewVisibility(R.id.status, if ((live && !compact) || idleStatus) View.VISIBLE else View.GONE)
         v.setTextViewText(R.id.status, when {
             problem != null && live -> "⚠ $problem"
             live -> "● Live · ${(st.sessionEndMs - now.toEpochMilli() + 59_999) / 60_000} min left" +
                 (if (st.fetchedAtMs > 0) " · ${HHMM.format(Instant.ofEpochMilli(st.fetchedAtMs))}" else "")
-            st.fetchedAtMs > 0 -> "Tap for live times · last ${HHMM.format(Instant.ofEpochMilli(st.fetchedAtMs))}"
-            else -> "Tap for live bus times"
+            else -> TAP_PROMPT
         })
         v.setTextColor(R.id.status, when { problem != null && live -> tc.red; live -> tc.live; else -> tc.grey })
         return v
