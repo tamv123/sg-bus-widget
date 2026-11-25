@@ -1,1 +1,1 @@
-Now works on Android 13 (e.g. Galaxy S20 and S21). New app icon.
+Anonymous usage counts (taps, app opens, widgets) help improve SG Bus. They never include personal information, location, bus stops or routes. Switch off any time in the About tab.

@@ -1,0 +1,31 @@
+rules_version = '2';
+// SG Bus anonymous usage counts — project ria-chatbot-52232f7f, collection sgbus_usage.
+// Phones may only create/overwrite their own per-day record, in exactly this shape. Nobody can read, list or
+// delete through these rules; the 7am report reads with a server credential (rules don't apply to it).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /sgbus_usage/{docId} {
+      function count(v) { return v is int && v >= 0 && v <= 100000; }
+      function valid(d) {
+        return d.keys().hasOnly(['install', 'day', 'app', 'debug', 'schema', 'taps', 'appOpens', 'widgetsAdded',
+                                 'widgetsRemoved', 'widgetsSmall', 'widgetsLarge', 'expireAt'])
+          && d.keys().hasAll(['install', 'day', 'app', 'debug', 'schema', 'taps', 'appOpens', 'widgetsAdded',
+                              'widgetsRemoved', 'widgetsSmall', 'widgetsLarge', 'expireAt'])
+          && d.install is string && d.install.matches('^[0-9a-f-]{36}$')
+          && d.day is string && d.day.matches('^20[0-9]{2}-[0-1][0-9]-[0-3][0-9]$')
+          && docId == d.install + '_' + d.day
+          && d.app is string && d.app.size() <= 20
+          && d.debug is bool && d.schema == 1
+          && count(d.taps) && count(d.appOpens) && count(d.widgetsAdded) && count(d.widgetsRemoved)
+          && d.widgetsSmall is int && d.widgetsSmall >= 0 && d.widgetsSmall <= 50
+          && d.widgetsLarge is int && d.widgetsLarge >= 0 && d.widgetsLarge <= 50
+          && d.expireAt is timestamp && d.expireAt > request.time && d.expireAt < request.time + duration.value(500, 'd');
+      }
+      allow create, update: if valid(request.resource.data);
+      allow read, delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
