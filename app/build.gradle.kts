@@ -19,10 +19,10 @@ android {
     compileSdk = 36
     defaultConfig {
         applicationId = "sg.bus.widget"
-        minSdk = 34
+        minSdk = 33   // Android 13 (e.g. Galaxy S20/S21): LiveService has its own path there
         targetSdk = 36
-        versionCode = 21
-        versionName = "0.7.7"
+        versionCode = 22
+        versionName = "0.8.0"
     }
     signingConfigs {
         if (signingProps.isNotEmpty()) create("upload") {

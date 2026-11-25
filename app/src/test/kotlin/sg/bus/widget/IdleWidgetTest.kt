@@ -17,7 +17,7 @@ import sg.bus.core.saved
 
 /** Once the live session ends the widget must show only the tap prompt, never the last session's times (2026-11-11). */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [33, 34])
 class IdleWidgetTest {
     private val ctx = RuntimeEnvironment.getApplication()
     private val now = Instant.now()

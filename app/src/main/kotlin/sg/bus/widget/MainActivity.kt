@@ -299,7 +299,9 @@ class MainActivity : Activity() {
         if (!notif) col.button("Allow notifications") { requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2) }
             .tag = "tour:notif.btn"
         val bg = checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
-        if (fine && !bg && Store.diag(this, "fgs")?.startsWith("specialUse") == true) {
+        val tapNoLocation = Store.diag(this, "fgs")?.startsWith("specialUse") == true ||   // Android 14+
+            Store.diag(this, "loc13") == "none"                                         // Android 13
+        if (fine && !bg && tapNoLocation) {
             col.label("⚠ Your phone didn't give the widget location from a tap. Set location to \"Allow all the time\" so it can pick the nearest stop.")
             col.button("Open location settings") {
                 startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))

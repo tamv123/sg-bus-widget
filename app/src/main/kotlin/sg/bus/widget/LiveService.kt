@@ -9,6 +9,7 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
@@ -83,6 +84,7 @@ class LiveService : Service() {
 
     /** Location type first (gives the session while-in-use location); without it we still run, on the last stop. */
     private fun goForeground(n: Notification): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return goForeground13(n)
         try {
             startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
             Store.setDiag(this, "fgs", "location+specialUse")
@@ -101,6 +103,21 @@ class LiveService : Service() {
         }
     }
 
+    /**
+     * Android 13 has no specialUse type, so the session is a plain location service. A widget tap may
+     * still not get location there; the tick records that (diag "loc13") and Setup then asks for
+     * "Allow all the time".
+     */
+    private fun goForeground13(n: Notification): Boolean = try {
+        startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        Store.setDiag(this, "fgs", "location (Android 13)")
+        true
+    } catch (e: Exception) {
+        Log.e(TAG, "foreground refused: ${e.javaClass.simpleName}: ${e.message}")
+        Store.setDiag(this, "fgs", "refused — ${e.javaClass.simpleName}")
+        false
+    }
+
     private fun tick() {
         val now = Instant.now()
         val live = Widgets.ids(this).filter { Store.state(this, it).sessionEndMs > now.toEpochMilli() }
@@ -110,6 +127,8 @@ class LiveService : Service() {
         val stops = Directory.stops(this)
         val loc = Locator.current(this)
         Store.setDiag(this, "loc", loc?.let { "%.5f,%.5f ±%.0f m (%s)".format(it.latitude, it.longitude, it.accuracy, it.provider) } ?: "none")
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE && Locator.hasPermission(this))
+            Store.setDiag(this, "loc13", if (loc == null) "none" else "ok")   // Setup's "Allow all the time" hint
         val fetched = mutableMapOf<String, Result<Arrivals>>()
         fun arrivals(stop: String) = fetched.getOrPut(stop) {
             runCatching { parseArrivals(Fetcher.arrivals(this, stop), stop) }
