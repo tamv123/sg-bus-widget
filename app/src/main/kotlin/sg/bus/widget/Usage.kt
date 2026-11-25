@@ -22,7 +22,7 @@ import sg.bus.core.usageDocId
 import sg.bus.core.usageFirestoreJson
 
 /**
- * Anonymous usage counts (see sg.bus.core.Usage for exactly what is sent). On by default, off switch in Setup.
+ * Anonymous usage counts (see sg.bus.core.Usage for exactly what is sent). On by default, off switch in Display.
  * Turning it off stops counting and sending at once and drops the counts not yet sent.
  * Uploads ride on moments the phone is already online (a widget tap, opening the app): no background jobs.
  */

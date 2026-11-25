@@ -1,1 +1,1 @@
-Anonymous usage counts (taps, app opens, widgets) help improve SG Bus. They never include personal information, location, bus stops or routes. Switch off any time in ☰ › Setup.
+Anonymous usage counts (taps, app opens, widgets) help improve SG Bus. They never include personal information, location, bus stops or routes. Switch off any time in the Display tab.

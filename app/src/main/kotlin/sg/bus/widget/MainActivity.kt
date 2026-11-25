@@ -17,6 +17,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -33,56 +34,62 @@ import sg.bus.core.nearbyStops
 import sg.bus.core.searchStops
 
 /**
- * Three tabs behind a ☰ drawer: Main (My stops + Widgets), Setup (permissions), About (version + diagnostics).
- * Platform views only, so the drawer is a hand-rolled overlay rather than AndroidX DrawerLayout.
+ * Three tabs in a bottom menu bar: Setup (My stops + Permissions), Display (Widgets, look, usage counts),
+ * About (version + diagnostics).
  */
 class MainActivity : Activity() {
-    private enum class Tab(val label: String, val title: String) {
-        MAIN("🚏  Main", "SG Bus"), SETUP("⚙️  Setup", "Setup"), ABOUT("ℹ️  About", "About")
+    private enum class Tab(val label: String, val title: String, val icon: Int) {
+        SETUP("Setup", "SG Bus", R.drawable.ic_bus), DISPLAY("Display", "Display", R.drawable.ic_nav_display),
+        ABOUT("About", "About", R.drawable.ic_nav_about)
     }
 
-    private var tab = Tab.MAIN
+    private var tab = Tab.SETUP
     private lateinit var col: LinearLayout
     private lateinit var scroll: ScrollView
-    private lateinit var scrim: View
-    private lateinit var drawer: LinearLayout
     private lateinit var titleView: TextView
     private lateinit var frame: FrameLayout
-    private lateinit var menuButton: View
+    private lateinit var navBar: LinearLayout
+    private val navItems = HashMap<Tab, Triple<View, ImageView, TextView>>()
     private var tour: TourOverlay? = null
     private val endTourOnBack = OnBackInvokedCallback { endTour(finished = false) }
-    private val closeOnBack = OnBackInvokedCallback { closeDrawer() }
     /** a rotation recreates the activity; that isn't the user opening the app again */
     private var skipOpenCount = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        tab = savedInstanceState?.getString("tab")?.let { runCatching { Tab.valueOf(it) }.getOrNull() } ?: Tab.MAIN
+        tab = savedInstanceState?.getString("tab")?.let { runCatching { Tab.valueOf(it) }.getOrNull() } ?: Tab.SETUP
         skipOpenCount = savedInstanceState?.getBoolean("configChange") == true
         col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(4), dp(20), dp(32)) }
         scroll = ScrollView(this).apply { addView(col) }
-        scrim = View(this).apply {
-            setBackgroundColor(0x66000000); visibility = View.GONE; alpha = 0f; setOnClickListener { closeDrawer() }
-        }
-        drawer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(0, dp(12), 0, dp(12))
-            setBackgroundColor(themeColor(android.R.attr.colorBackground)); elevation = dp(16).toFloat()
-            visibility = View.GONE; translationX = -dp(DRAWER_DP).toFloat(); isClickable = true   // swallow taps behind it
-        }
         titleView = TextView(this).apply { textSize = 20f; setTypeface(typeface, Typeface.BOLD) }
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            minimumHeight = dp(56); setPadding(dp(4), 0, dp(16), 0)
-            menuButton = iconButton(R.drawable.ic_menu, "Menu") { if (drawer.visibility == View.VISIBLE) closeDrawer() else openDrawer() }
-            addView(menuButton)
-            addView(titleView, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(12) })
+            minimumHeight = dp(56); setPadding(dp(20), 0, dp(16), 0)
+            addView(titleView)
         }
-        val body = FrameLayout(this).apply {
-            addView(scroll)
-            addView(scrim)
-            addView(drawer, FrameLayout.LayoutParams(dp(DRAWER_DP), FrameLayout.LayoutParams.MATCH_PARENT))
+        // bottom menu bar, same pattern as ScreenLens: icon + label per tab, the current one in the accent colour
+        navBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(themeColor(android.R.attr.colorBackground)); elevation = dp(8).toFloat()
         }
-        actionBar?.hide()   // our own bar: the ☰ bubble sits top-left whatever the theme does
+        for (t in Tab.entries) {
+            val icon = ImageView(this).apply { setImageResource(t.icon) }
+            val label = TextView(this).apply { text = t.label; textSize = 12f; gravity = Gravity.CENTER }
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(0, dp(8), 0, dp(8))
+                isClickable = true; contentDescription = t.label
+                background = obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackgroundBorderless)).let { a ->
+                    a.getDrawable(0).also { a.recycle() }
+                }
+                addView(icon, LinearLayout.LayoutParams(dp(24), dp(24)))
+                addView(label)
+                setOnClickListener { if (tour == null) go(t) }
+            }
+            navBar.addView(item, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            navItems[t] = Triple(item, icon, label)
+        }
+        val body = FrameLayout(this).apply { addView(scroll) }
+        actionBar?.hide()   // our own title bar, whatever the theme does
         // outer frame so the setup guide can lay over the bar and the page together
         frame = FrameLayout(this).apply {
             fitsSystemWindows = true
@@ -91,6 +98,7 @@ class MainActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 addView(bar)
                 addView(body, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+                addView(navBar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             })
         }
         setContentView(frame)
@@ -107,7 +115,7 @@ class MainActivity : Activity() {
         TourStep("Welcome to SG Bus 👋", {
             "One tap on a home-screen widget shows live arrivals for the stops you use. This quick guide sets it up: " +
                 "location, notifications, your stops, then a widget."
-        }, { null }, next = "Let's go", prepare = { go(Tab.MAIN) }),
+        }, { null }, next = "Let's go", prepare = { go(Tab.SETUP) }),
         TourStep("Allow location", {
             if (Locator.hasPermission(this)) "✅ Location is allowed. Your widgets will pick whichever of your stops is nearest."
             else "Tap Allow location. A widget uses it to pick whichever of your stops is nearest. Your location stays on your phone."
@@ -122,19 +130,19 @@ class MainActivity : Activity() {
             if (n > 0) "✅ You have $n stop${if (n == 1) "" else "s"}. Add more any time, like home and work. Drag ⠿ to change the order."
             else "Tap Add stop near me, pick your stop, then tick the buses you take. Do this for each stop you use often, " +
                 "like home and work. Not nearby? Use Add stop by code or name, just below."
-        }, { tag("tour:add") }, prepare = { go(Tab.MAIN) }),
+        }, { tag("tour:add") }, prepare = { go(Tab.SETUP) }),
         TourStep("Put a widget on your home screen", {
             "Tap Add large widget or Add small widget. Then tap the widget whenever you're heading out: it shows live times for " +
                 "your nearest stop for 15 minutes."
-        }, { tag("tour:widget") }, prepare = { go(Tab.MAIN) }),
+        }, { tag("tour:widget") }, prepare = { go(Tab.DISPLAY) }),
         TourStep("You're all set 🎉", {
-            "Setup, widget colours and text size, and About are in this menu. You can replay this guide from About."
-        }, { menuButton }, next = "Done"),
+            "Use the menu at the bottom: Setup has your stops and permissions; Display has widgets, colours and text size. " +
+                "You can replay this guide from About."
+        }, { navBar }, next = "Done"),
     )
 
     private fun startTour(at: Int = 0) {
         if (tour != null) return
-        if (drawer.visibility == View.VISIBLE) closeDrawer()
         val t = TourOverlay(this, tourSteps()) { finished -> endTour(finished) }
         tour = t
         frame.addView(t, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
@@ -148,7 +156,7 @@ class MainActivity : Activity() {
         onBackInvokedDispatcher.unregisterOnBackInvokedCallback(endTourOnBack)
         Store.setDiag(this, "tour.done", if (finished) "finished" else "skipped at ${t.index}")
         t.animate().alpha(0f).setDuration(150).withEndAction { frame.removeView(t) }.start()
-        if (finished) go(Tab.MAIN)
+        if (finished) go(Tab.SETUP)
     }
 
     /** Fresh installs get the guide once. People who already have stops (updating from an older version) don't. */
@@ -182,44 +190,24 @@ class MainActivity : Activity() {
         maybeStartTour()
     }
 
-    private fun openDrawer() {
-        drawMenu()
-        drawer.visibility = View.VISIBLE
-        scrim.visibility = View.VISIBLE
-        drawer.animate().translationX(0f).setDuration(200).start()
-        scrim.animate().alpha(1f).setDuration(200).start()
-        onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, closeOnBack)
-    }
-
-    private fun closeDrawer() {
-        onBackInvokedDispatcher.unregisterOnBackInvokedCallback(closeOnBack)
-        drawer.animate().translationX(-dp(DRAWER_DP).toFloat()).setDuration(180).withEndAction { drawer.visibility = View.GONE }.start()
-        scrim.animate().alpha(0f).setDuration(180).withEndAction { scrim.visibility = View.GONE }.start()
-    }
-
     private fun go(t: Tab) {
         tab = t
         redraw()
         scroll.scrollTo(0, 0)
     }
 
-    private fun drawMenu() {
-        drawer.removeAllViews()
-        drawer.addView(TextView(this).apply {
-            text = "SG Bus"; textSize = 20f; setTypeface(typeface, Typeface.BOLD); setPadding(dp(24), dp(8), dp(24), dp(16))
-        })
+    /** Bottom bar: current tab in the accent colour; Setup gets a ⚠ while location is off. */
+    private fun drawNav() {
         val accent = themeColor(android.R.attr.colorAccent)
-        Tab.entries.forEach { t ->
-            val warn = if (t == Tab.SETUP && !Locator.hasPermission(this)) "  ⚠" else ""
-            drawer.addView(TextView(this).apply {
-                text = t.label + warn; textSize = 16f; gravity = Gravity.CENTER_VERTICAL
-                minHeight = dp(52); setPadding(dp(24), 0, dp(24), 0)
-                if (t == tab) {
-                    setTypeface(typeface, Typeface.BOLD); setTextColor(accent)
-                    setBackgroundColor(accent and 0x00FFFFFF or 0x22000000)
-                }
-                setOnClickListener { closeDrawer(); go(t) }
-            })
+        val muted = themeColor(android.R.attr.textColorSecondary)
+        for ((t, v) in navItems) {
+            val (item, icon, label) = v
+            val c = if (t == tab) accent else muted
+            icon.imageTintList = android.content.res.ColorStateList.valueOf(c)
+            label.setTextColor(c)
+            label.typeface = if (t == tab) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            label.text = t.label + if (t == Tab.SETUP && !Locator.hasPermission(this)) " ⚠" else ""
+            item.isSelected = t == tab
         }
     }
 
@@ -227,18 +215,19 @@ class MainActivity : Activity() {
         titleView.text = tab.title
         col.removeAllViews()
         when (tab) {
-            Tab.MAIN -> drawMain()
             Tab.SETUP -> drawSetup()
+            Tab.DISPLAY -> drawDisplay()
             Tab.ABOUT -> drawAbout()
         }
-        if (drawer.visibility == View.VISIBLE) drawMenu()
+        drawNav()
         tour?.refresh()   // the guide's target may have been rebuilt (e.g. "Allow location" became "✅ allowed")
     }
 
-    private fun drawMain() {
+    /** Setup tab: My stops, then Permissions at the bottom. */
+    private fun drawSetup() {
         if (!Locator.hasPermission(this)) {
             col.label("⚠ Location is off, so widgets can't tell which stop is nearest.")
-            col.button("Fix in Setup") { go(Tab.SETUP) }
+            col.button("Fix in Permissions ↓") { tag("tour:location")?.let { v -> scroll.post { scroll.smoothScrollTo(0, v.top) } } }
         }
         col.heading("My stops")
         val regs = Store.registrations(this)
@@ -252,14 +241,7 @@ class MainActivity : Activity() {
         col.button("➕ Add stop near me") { addNearMe() }.tag = "tour:add"
         col.button("🔎 Add stop by code or name") { addBySearch() }
 
-        col.heading("Widgets")
-        col.label("Tap a widget for live times: refreshes every 20 s for 15 min. Long-press › settings to pin a widget to one stop.", 14f)
-        val mgr = getSystemService(AppWidgetManager::class.java)
-        if (mgr.isRequestPinAppWidgetSupported) {
-            col.button("Add large widget (4×2)") { mgr.requestPinAppWidget(ComponentName(this, BusWidgetLarge::class.java), null, null) }
-                .tag = "tour:widget"
-            col.button("Add small widget (2×1)") { mgr.requestPinAppWidget(ComponentName(this, BusWidgetSmall::class.java), null, null) }
-        } else col.label("Long-press your home screen › Widgets › SG Bus.", 14f).tag = "tour:widget"
+        drawPermissions()
     }
 
     /** One My-stops row: ⠿ handle · stop + its buses + [Buses] [Bus order] · 🗑. */
@@ -296,8 +278,7 @@ class MainActivity : Activity() {
         return row to handle
     }
 
-    private fun drawSetup() {
-        drawLook()
+    private fun drawPermissions() {
         col.heading("Permissions")
         val fine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         col.label(if (fine) "✅ Location allowed (picks your nearest stop)" else "❌ Location not allowed — widgets can't tell which stop is nearest")
@@ -317,6 +298,19 @@ class MainActivity : Activity() {
                 startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
             }
         }
+    }
+
+    /** Display tab: add a widget, how widgets look, and the usage-count switch. */
+    private fun drawDisplay() {
+        col.heading("Widgets")
+        col.label("Tap a widget for live times: refreshes every 20 s for 15 min. Long-press › settings to pin a widget to one stop.", 14f)
+        val mgr = getSystemService(AppWidgetManager::class.java)
+        if (mgr.isRequestPinAppWidgetSupported) {
+            col.button("Add large widget (4×2)") { mgr.requestPinAppWidget(ComponentName(this, BusWidgetLarge::class.java), null, null) }
+                .tag = "tour:widget"
+            col.button("Add small widget (2×1)") { mgr.requestPinAppWidget(ComponentName(this, BusWidgetSmall::class.java), null, null) }
+        } else col.label("Long-press your home screen › Widgets › SG Bus.", 14f).tag = "tour:widget"
+        drawLook()
         drawUsageSwitch()
     }
 
@@ -453,7 +447,6 @@ class MainActivity : Activity() {
     }
 
     private companion object {
-        const val DRAWER_DP = 280
         const val USAGE_SUMMARY =
             "Only daily counts of widget taps, app opens and widgets. No personal information, location, bus stops or routes."
         val USAGE_EXPLAINER = """
