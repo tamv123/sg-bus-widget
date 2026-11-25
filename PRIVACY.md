@@ -1,6 +1,6 @@
 # SG Bus — Privacy Policy
 
-_Last updated: 4 November 2026_
+_Last updated: 26 November 2026_
 
 SG Bus is a home-screen widget that shows live Singapore bus arrival times for the stops you choose.
 
@@ -10,7 +10,6 @@ SG Bus is a home-screen widget that shows live Singapore bus arrival times for t
   sent anywhere, stored off the device, or shared with anyone.
 - **Internet**, to download public bus data from busrouter.sg: arrival times (the request contains only a bus stop
   code) and the list of bus stops. Like any web request, it reveals your IP address to that service.
-
 - **Anonymous usage counts** (on by default; switch off any time in the app's About tab). Per day, the app sends:
   how many times widgets were tapped, how many times the app was opened, how many widgets are on the home screen
   (small/large), and how many were added or removed. Each record also carries the app version, whether it is a test
