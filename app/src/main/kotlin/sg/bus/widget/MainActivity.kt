@@ -330,7 +330,18 @@ class MainActivity : Activity() {
                 if (on) { Usage.syncWidgets(this@MainActivity); Usage.flush(this@MainActivity) }
             }
         })
-        col.label(USAGE_EXPLAINER, 14f)
+        col.label(USAGE_SUMMARY, 14f)
+        // the full explainer is folded by default; a tap unfolds it (Victor, 2026-11-26)
+        val details = col.label(USAGE_EXPLAINER, 14f).apply { visibility = View.GONE; tag = "usage:details" }
+        col.label("Show details ▸", 14f).apply {
+            tag = "usage:toggle"
+            setTextColor(0xFF1E88E5.toInt()); setPadding(0, dp(4), 0, dp(12))
+            setOnClickListener {
+                val open = details.visibility != View.VISIBLE
+                details.visibility = if (open) View.VISIBLE else View.GONE
+                text = if (open) "Hide details ▾" else "Show details ▸"
+            }
+        }.also { col.removeView(it); col.addView(it, col.indexOfChild(details)) }
     }
 
     /** Widget look: colour swatches + transparency, with a live preview over a wallpaper-like gradient. */
@@ -443,6 +454,8 @@ class MainActivity : Activity() {
 
     private companion object {
         const val DRAWER_DP = 280
+        const val USAGE_SUMMARY =
+            "Only daily counts of widget taps, app opens and widgets. No personal information, location, bus stops or routes."
         val USAGE_EXPLAINER = """
             |Helps one developer see whether SG Bus is actually useful, and what to improve. The app sends only these numbers, per day:
             |
