@@ -1,1 +1,1 @@
-When the 15 minutes of live updates end, the widget now just says "Tap for live update" instead of showing old bus times.
+New app icon: a green SG bus with a tap.
