@@ -14,7 +14,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
-/** Menu layout (2026-11-26): Setup = My stops, then Permissions at the bottom; Display = Widgets, look, usage counts. */
+/** Menu layout (2026-11-26): Setup = My stops, then Permissions at the bottom; Display = Widgets + look; About has the usage-count switch. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33, 34])
 class TabsTest {
@@ -47,7 +47,10 @@ class TabsTest {
 
         tapNav(root, "Display"); idle()
         val display = headings(root)
-        assertEquals(listOf("Widgets", "Widget look", "Anonymous usage counts"), display)
+        assertEquals(listOf("Widgets", "Widget look"), display)
+
+        tapNav(root, "About")
+        assertTrue(headings(root).toString(), "Anonymous usage counts" in headings(root))
 
         // bottom bar, no ☰ drawer
         val labels = listOf("Setup", "Display", "About").map { l ->

@@ -34,8 +34,8 @@ import sg.bus.core.nearbyStops
 import sg.bus.core.searchStops
 
 /**
- * Three tabs in a bottom menu bar: Setup (My stops + Permissions), Display (Widgets, look, usage counts),
- * About (version + diagnostics).
+ * Three tabs in a bottom menu bar: Setup (My stops + Permissions), Display (Widgets + look),
+ * About (version, diagnostics, usage-count switch).
  */
 class MainActivity : Activity() {
     private enum class Tab(val label: String, val title: String, val icon: Int) {
@@ -300,7 +300,7 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Display tab: add a widget, how widgets look, and the usage-count switch. */
+    /** Display tab: add a widget and how widgets look. */
     private fun drawDisplay() {
         col.heading("Widgets")
         col.label("Tap a widget for live times: refreshes every 20 s for 15 min. Long-press › settings to pin a widget to one stop.", 14f)
@@ -311,7 +311,6 @@ class MainActivity : Activity() {
             col.button("Add small widget (2×1)") { mgr.requestPinAppWidget(ComponentName(this, BusWidgetSmall::class.java), null, null) }
         } else col.label("Long-press your home screen › Widgets › SG Bus.", 14f).tag = "tour:widget"
         drawLook()
-        drawUsageSwitch()
     }
 
     private fun drawUsageSwitch() {
@@ -442,6 +441,7 @@ class MainActivity : Activity() {
             col.label("#$id $mode · last fetch $at${st.views.firstOrNull()?.error?.let { " · ⚠ $it" } ?: ""}", 13f)
         }
         col.button("Show the setup guide again") { startTour() }
+        drawUsageSwitch()
         col.label("Arrival data: arrivelah (busrouter.sg), from LTA DataMall. Not affiliated with LTA.", 12f)
         col.button("Source code on GitHub") { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SOURCE_URL))) }
     }

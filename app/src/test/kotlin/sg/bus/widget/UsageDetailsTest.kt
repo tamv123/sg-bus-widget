@@ -39,10 +39,10 @@ class UsageDetailsTest {
         val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
         idle()
         val root = activity.window.decorView
-        // skip the first-run guide, then open Display in the bottom bar (where the usage switch lives)
+        // skip the first-run guide, then open About in the bottom bar (where the usage switch lives)
         buttons(root).first { it.text.toString() == "Skip guide" }.performClick()
         idle()
-        tapNav(root, "Display")
+        tapNav(root, "About")
         idle()
         val details = root.findViewWithTag<TextView>("usage:details") ?: error("no usage details on Setup")
         val toggle = root.findViewWithTag<TextView>("usage:toggle")
