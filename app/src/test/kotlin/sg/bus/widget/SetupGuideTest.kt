@@ -13,7 +13,7 @@ import org.robolectric.annotation.Config
 
 /** Walks the first-run setup guide end to end on the JVM (Victor's S25+ crashed on "Let's go", 2026-11-06). */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [33, 34])
 class SetupGuideTest {
     private fun buttons(v: View): List<Button> = when (v) {
         is Button -> listOf(v)

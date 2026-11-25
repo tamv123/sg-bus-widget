@@ -1,1 +1,1 @@
-New app icon: a green SG bus with a tap.
+Now works on Android 13 (e.g. Galaxy S20 and S21). New app icon.
