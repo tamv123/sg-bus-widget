@@ -1,7 +1,7 @@
 package sg.bus.core
 
 /**
- * Widget background colour + transparency, chosen in Setup and applied to every widget.
+ * Widget background colour + transparency, chosen in Display and applied to every widget.
  * Text colours follow the background: dark text on light colours, light text on dark ones.
  */
 data class WidgetLook(
@@ -23,7 +23,7 @@ data class WidgetLook(
         const val DEFAULT_TRANSPARENCY = 30
         const val MIN_TEXT_PCT = 70
         const val MAX_TEXT_PCT = 130
-        /** Swatches offered in Setup: name to RGB. White first (the default). */
+        /** Swatches offered in Display: name to RGB. White first (the default). */
         val PALETTE = listOf(
             "White" to 0xFFFFFF, "Mist" to 0xECEFF1, "Sand" to 0xFFF3E0, "Mint" to 0xE8F5E9,
             "Sky" to 0xE3F2FD, "Green" to 0x2E7D32, "Navy" to 0x1A237E, "Charcoal" to 0x263238, "Black" to 0x000000,

@@ -80,10 +80,9 @@ class StoreScreenshots {
         seed(stops = true, tourDone = true)
         val a = Robolectric.buildActivity(MainActivity::class.java).setup().get()
         shot(a, "app-2-my-stops.png")
-        call(a, "go", tab("SETUP"))
+        call(a, "go", tab("DISPLAY"))
         shot(a, "app-3-widget-look.png")
-        call(a, "go", tab("MAIN"))
-        call(a, "openDrawer")
-        shot(a, "app-4-menu.png")
+        call(a, "go", tab("ABOUT"))
+        shot(a, "app-4-about.png")
     }
 }
