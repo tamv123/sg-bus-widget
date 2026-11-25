@@ -143,7 +143,8 @@ leaves the phone, and there are no accounts.
 | 4×3+ | Up to 6 services, plus a line for the **second-nearest** registered stop |
 
 Every size shows a status line: `Live · 12:41 left` while running, or `Tap for live
-times · last 08:02` when idle (greyed out). Errors are shown, never hidden:
+update` when idle. Idle shows NO bus times, distance or nearest stop: they're from the last session and old clock
+times read as live (Victor, 2026-11-11). A pinned widget keeps its stop name. Errors are shown, never hidden:
 `No signal — retrying`, `Location off — using Avenue Villa`, `arrivelah down`.
 
 **Lessons from One UI in the PM2.5 widget, applied from the start:**

@@ -309,7 +309,9 @@ class MainActivity : Activity() {
         if (!notif) col.button("Allow notifications") { requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2) }
             .tag = "tour:notif.btn"
         val bg = checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
-        if (fine && !bg && Store.diag(this, "fgs")?.startsWith("specialUse") == true) {
+        val tapNoLocation = Store.diag(this, "fgs")?.startsWith("specialUse") == true ||   // Android 14+
+            Store.diag(this, "loc13") == "none"                                         // Android 13
+        if (fine && !bg && tapNoLocation) {
             col.label("⚠ Your phone didn't give the widget location from a tap. Set location to \"Allow all the time\" so it can pick the nearest stop.")
             col.button("Open location settings") {
                 startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
@@ -345,7 +347,7 @@ class MainActivity : Activity() {
         val stop = TextView(this).apply { text = "Avenue Villa"; textSize = 13f; setTypeface(typeface, Typeface.BOLD); includeFontPadding = false }
         val no = TextView(this).apply { text = "970"; textSize = 15f; setTypeface(typeface, Typeface.BOLD); includeFontPadding = false }
         val eta = TextView(this).apply { text = "3 min    14    27"; textSize = 15f; includeFontPadding = false }
-        val status = TextView(this).apply { text = "Tap for live times · last 08:12"; textSize = 11f }
+        val status = TextView(this).apply { text = "● Live · 14 min left · 08:12"; textSize = 11f }
         card.addView(stop)
         card.addView(LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(3), 0, 0)
@@ -408,7 +410,7 @@ class MainActivity : Activity() {
                 override fun onStopTrackingTouch(sb: android.widget.SeekBar) = apply()
             })
         })
-        col.label("Smaller text fits more on a small widget: a 2×1 shows the \"Tap for live times\" line once it fits. " +
+        col.label("Smaller text fits more on a small widget: a 2×1 shows the status line (\"● Live · 14 min left\") once it fits. " +
             "Text turns light on dark colours. The more transparent, the more your wallpaper decides how readable it is.", 12f)
             .setTextColor(themeColor(android.R.attr.textColorSecondary))
         paint()
@@ -436,6 +438,7 @@ class MainActivity : Activity() {
         }
         col.button("Show the setup guide again") { startTour() }
         col.label("Arrival data: arrivelah (busrouter.sg), from LTA DataMall. Not affiliated with LTA.", 12f)
+        col.button("Source code on GitHub") { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SOURCE_URL))) }
     }
 
     private companion object {
@@ -459,6 +462,8 @@ class MainActivity : Activity() {
             |
             |(Separately, to show arrival times the app has always asked busrouter.sg for a stop's buses, as described in the privacy policy.)
         """.trimMargin()
+        /** This app's source code. */
+        const val SOURCE_URL = "https://github.com/tamv123/sg-bus-widget"
     }
 
     private fun save(r: Registration) {

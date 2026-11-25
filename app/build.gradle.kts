@@ -19,10 +19,10 @@ android {
     compileSdk = 36
     defaultConfig {
         applicationId = "sg.bus.widget"
-        minSdk = 34
+        minSdk = 33   // Android 13 (e.g. Galaxy S20/S21): LiveService has its own path there
         targetSdk = 36
-        versionCode = 20
-        versionName = "0.8.0"
+        versionCode = 23
+        versionName = "0.9.0"
     }
     signingConfigs {
         if (signingProps.isNotEmpty()) create("upload") {
@@ -39,7 +39,12 @@ android {
         }
     }
     buildFeatures { buildConfig = true }
-    testOptions { unitTests.isIncludeAndroidResources = true }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        // `./gradlew :app:testDebugUnitTest --tests '*StoreScreenshots*' -Pshots=<dir>` renders Play/README screenshots
+        val shots = providers.gradleProperty("shots").orNull ?: ""
+        unitTests.all { it.systemProperty("sgbus.shots", shots) }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
