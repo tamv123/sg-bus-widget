@@ -6,7 +6,7 @@ It then keeps refreshing every 20 s for 15 min, and stops by itself.
 
 **[Get it on Google Play](https://play.google.com/store/apps/details?id=sg.bus.widget)** (Android 13 or newer).
 
-**Status: v0.8.0** on Google Play internal testing, v0.7.4 on closed testing (2026-11-26). Tested on a Samsung S25+ and an S20+ (Android 13).
+**Status: v0.8.0 live on Google Play** (production, 2026-11-26). Tested on a Samsung S25+ and an S20+ (Android 13).
 
 | Live on the home screen | First-run setup guide | My stops | Widget look |
 |---|---|---|---|
