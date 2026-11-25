@@ -4,7 +4,9 @@ Android home-screen widget. **One tap** shows live Singapore bus arrival times f
 registered bus stop **nearest to you**, for only the services you registered there.
 It then keeps refreshing every 20 s for 15 min, and stops by itself.
 
-**Status: v0.7.5** on Google Play internal testing, v0.7.4 on closed testing (2026-11-06). Tested on a Samsung S25+.
+**[Get it on Google Play](https://play.google.com/store/apps/details?id=sg.bus.widget)** (Android 13 or newer).
+
+**Status: v0.8.0** on Google Play internal testing, v0.7.4 on closed testing (2026-11-26). Tested on a Samsung S25+ (Android 16) and S20+ (Android 13).
 
 | Live on the home screen | First-run setup guide | My stops | Widget look |
 |---|---|---|---|
